@@ -80,6 +80,8 @@ source $ZSH/oh-my-zsh.sh
 export WORKON_HOME=$HOME/.virtualenvs
 export PROJECT_HOME=$HOME/.projects
 source /usr/local/bin/virtualenvwrapper.sh
+# backwards compatibility
+export VIRTUALENVWRAPPER_PYTHON=/usr/bin/python
 
 # miniconda3
 export PATH="$PATH:$HOME/miniconda3/bin"
@@ -93,7 +95,7 @@ export PATH="$PATH:$HOME/miniconda3/bin"
 if [[ -n $SSH_CONNECTION ]]; then
   export EDITOR='vim'
 else
-  export EDITOR='mvim'
+  export EDITOR='nvim'
 fi
 
 # Compilation flags
@@ -103,22 +105,6 @@ fi
 eval `dircolors ~/.dircolors`
 
 cd ~
-
-
-# >>> conda initialize >>>
-# !! Contents within this block are managed by 'conda init' !!
-__conda_setup="$('/home/drake/miniconda3/bin/conda' 'shell.zsh' 'hook' 2> /dev/null)"
-if [ $? -eq 0 ]; then
-    eval "$__conda_setup"
-else
-    if [ -f "/home/drake/miniconda3/etc/profile.d/conda.sh" ]; then
-        . "/home/drake/miniconda3/etc/profile.d/conda.sh"
-    else
-        export PATH="/home/drake/miniconda3/bin:$PATH"
-    fi
-fi
-unset __conda_setup
-# <<< conda initialize <<<
 
 # Set personal aliases, overriding those provided by oh-my-zsh libs,
 # plugins, and themes. Aliases can be placed here, though oh-my-zsh
@@ -141,6 +127,3 @@ alias gcom-a="git commit -am"
 alias gfch="git fetch"
 alias gpull="git pull"
 alias gpush="git push"
-
-# seedot
-alias seedot="git --git-dir=$HOME/.seedot/ --work-tree=$HOME"
