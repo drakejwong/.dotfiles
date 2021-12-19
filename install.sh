@@ -31,7 +31,7 @@ stow zsh
 
 # install MesloLGS NF font for p10k
 FONTS_DIR=$HOME/.local/share/fonts
-mkdir -p $FONTS_DIR
+[ -d foo ] || mkdir -p $FONTS_DIR
 for font_type in Regular Bold Italic Bold%20Italic; do \
     wget -nc -P $FONTS_DIR https://github.com/romkatv/powerlevel10k-media/raw/master/MesloLGS%20NF%20$font_type.ttf ; \
 done
