@@ -37,6 +37,9 @@ fi
 # enable fasd
 eval "$(fasd --init auto)"
 
+# emacs keys
+bindkey -e
+
 # TODO: move these
 alias szsh='source $HOME/.zshrc'
 alias vi=nvim
