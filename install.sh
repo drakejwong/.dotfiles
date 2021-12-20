@@ -48,5 +48,8 @@ sh -c 'curl -fLo $HOME/nvim/autoload/plug.vim --create-dirs \
        https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim'
 nvim --headless +PlugInstall +qall
 
+# tpm install
+git clone https://github.com/tmux-plugins/tpm $HOME/.tmux/plugins/tpm
+
 # alacritty for MacOS
 [ `uname -s` = 'Darwin' ] && stow alacritty
