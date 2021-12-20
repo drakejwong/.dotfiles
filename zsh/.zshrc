@@ -54,7 +54,7 @@ bindkey '^x^x' edit-command-line
 
 alias ga='git add'
 alias gc='git commit -v'
-alias gp='git push'
+alias gp='git push -u origin master'
 alias gr='git reset'
 alias grh='git reset --hard'
 alias gco='git checkout'
