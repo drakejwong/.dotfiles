@@ -37,6 +37,9 @@ Plug 'nvim-lua/plenary.nvim'
 Plug 'nvim-telescope/telescope.nvim'
 Plug 'nvim-telescope/telescope-fzy-native.nvim'
 
+" tmux pane nav
+Plug 'christoomey/vim-tmux-navigator'
+
 call plug#end()
 
 " set colorscheme
