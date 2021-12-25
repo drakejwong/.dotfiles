@@ -1,6 +1,3 @@
-# use nix
-if [ -e $HOME/.nix-profile/etc/profile.d/nix.sh ]; then . $HOME/.nix-profile/etc/profile.d/nix.sh; fi
-
 # anitbody install plugins
 source $HOME/.zsh_plugins.sh
 
@@ -63,3 +60,6 @@ alias gs='git status'
 alias gd='git diff'
 alias gds='git diff --staged'
 alias gf='git fetch --all --prune'
+alias gl='git pull'
+alias grb='git rebase'
+alias grbc='git rebase --continue'
