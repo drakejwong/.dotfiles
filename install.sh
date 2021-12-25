@@ -18,10 +18,11 @@ nix-env -iA \
 	nixpkgs.yarn \
 	nixpkgs.fzf \
 	nixpkgs.ripgrep \
-	nixpkgs.fasd \ # this is broken
+	nixpkgs.fasd \
 	nixpkgs.exa \
 	nixpkgs.direnv \
-	nixpkgs.bat
+	nixpkgs.bat \
+	nixpkgs.pgcli
 
 # stow dotfiles
 stow git
@@ -41,7 +42,8 @@ command -v zsh | sudo tee -a /etc/shells
 sudo chsh -s $(which zsh) $USER
 
 # antibody bundle
-antibody bundle < $HOME/.zsh_plugins.txt > $HOME/zsh_plugins.sh
+antibody bundle < $HOME/.zsh_plugins.txt > $HOME/.zsh_plugins.sh
+source $HOME/.zshrc
 
 # vim-plug install
 sh -c 'curl -fLo $HOME/nvim/autoload/plug.vim --create-dirs \
