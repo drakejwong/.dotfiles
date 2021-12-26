@@ -1,2 +1,2 @@
-nvim/.config/nvim/autoload
-nvim/.config/nvim/plugged
+nvim/.config/nvim/plugin
+nvim/.config/nvim-old/plugged
