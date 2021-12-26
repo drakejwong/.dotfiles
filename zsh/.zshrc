@@ -15,8 +15,11 @@ setopt extended_history       # record timestamp of command in HISTFILE
 setopt hist_expire_dups_first # delete duplicates first when HISTFILE size exceeds HISTSIZE
 setopt hist_ignore_dups       # ignore duplicated commands history list
 setopt hist_ignore_space      # ignore commands that start with space
+setopt inc_append_history     # share history
 setopt hist_verify            # show command with history expansion to user before running it
-setopt share_history          # share command history data
+
+# cd if command fails
+setopt autocd
 
 # hjkl for completion selection
 zmodload zsh/complist
@@ -40,6 +43,7 @@ bindkey -e
 # TODO: move these
 alias szsh='source $HOME/.zshrc'
 alias vi=nvim
+alias py=python3.8
 bindkey '^[[A' history-substring-search-up
 bindkey '^[[B' history-substring-search-down
 bindkey -M emacs '^P' history-substring-search-up
