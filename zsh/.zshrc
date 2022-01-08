@@ -99,4 +99,7 @@ alias glg="git log --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset 
 
 export LESS='MR'
 
-source "$HOME/.dotfiles/zsh/.zshscale"
+SCALE_ZSHRC="$HOME/.dotfiles/zsh/.zshscale"
+if [[ -f $SCALE_ZSHRC ]]; then
+    source $SCALE_ZSHRC
+fi
