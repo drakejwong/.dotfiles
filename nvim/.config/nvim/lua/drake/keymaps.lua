@@ -10,6 +10,10 @@ keymap("", "<Space>", "<Nop>", opts)
 vim.g.mapleader = " "
 vim.g.maplocalleader = " "
 
+-- swap ' and `
+keymap("", "'", "`", opts)
+keymap("", "`", "'", opts)
+
 -- explore
 -- keymap("n", "<leader>e", ":Lexplore 30<CR>", opts) -- broke
 keymap("n", "<leader>e", ":CHADopen<CR>", opts) -- woke
@@ -33,7 +37,7 @@ keymap("n", "<leader>fg", "<cmd>lua require('telescope.builtin').live_grep()<cr>
 keymap("n", "<leader>fc", "<cmd>lua require('telescope.builtin').command_history(require('telescope.themes').get_dropdown())<cr>", opts)
 keymap("n", "<leader>fj", "<cmd>lua require('telescope.builtin').jumplist()<cr>", opts)
 keymap("n", "<leader>fq", "<cmd>lua require('telescope.builtin').quickfix()<cr>", opts)
-keymap("n", "<leader>fl", "<cmd>lua require('telescope.builtin').lsp_references()<cr>", opts)
+keymap("n", "<leader>gr", "<cmd>lua require('telescope.builtin').lsp_references()<cr>", opts)
 keymap("n", "<leader>gd", "<cmd>lua require('telescope.builtin').lsp_definitions()<cr>", opts)
 keymap("n", "<leader>gs", "<cmd>lua require('telescope.builtin').git_status()<cr>", opts)
 keymap("n", "<leader>ft", "<cmd>lua require('telescope.builtin').treesitter()<cr>", opts)
