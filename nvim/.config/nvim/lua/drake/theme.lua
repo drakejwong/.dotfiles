@@ -1,15 +1,9 @@
-function req_setup(arg)
-  require(arg).setup()
-end
-
 -- colorscheme
-local colorscheme = "onedark"
-
-local status_ok, _ = pcall(req_setup, colorscheme)
-if not status_ok then
-  vim.notify("colorscheme " .. colorscheme .. " not found!")
-  return
-end
+require("onedark").setup({
+  functionStyle = "italic",
+  sidebars = {"qf", "vista_kind", "terminal", "packer"},
+  transparent = true,
+})
 
 -- lualine
 require("lualine").setup {
