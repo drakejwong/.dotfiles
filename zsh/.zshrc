@@ -41,6 +41,31 @@ eval "$(fasd --init auto)"
 bindkey -e
 
 # TODO: move these
+# improved backward word delete
+special-backward-delete-word () {
+  # default WORDCHARS: *?_-.[]~=/&;!#$%^(){}<>
+  local WORDCHARS='*~&#$%^<>'
+  zle backward-delete-word
+}
+zle -N special-backward-delete-word
+bindkey '^[^?' special-backward-delete-word
+
+special-backward-word () {
+  # default WORDCHARS: *?_-.[]~=/&;!#$%^(){}<>
+  local WORDCHARS='*~&#$%^<>'
+  zle backward-word
+}
+zle -N special-backward-word
+bindkey '^[b' special-backward-word
+
+special-forward-word () {
+  # default WORDCHARS: *?_-.[]~=/&;!#$%^(){}<>
+  local WORDCHARS='*~&#$%^<>'
+  zle forward-word
+}
+zle -N special-forward-word
+bindkey '^[f' special-forward-word
+
 alias srz='source $HOME/.zshrc'
 alias vi=nvim
 alias py=python3.8
