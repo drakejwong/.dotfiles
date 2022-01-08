@@ -47,9 +47,9 @@ local options = {
     backupdir = vim.fn.stdpath "data" .. "/backup//", -- // means dir info is saved in filename
     undofile = true,
     undodir = vim.fn.stdpath "data" .. "/undo//",
- 
+
     -- mouse mode
-    mouse = "a",
+    mouse = "",
 
     -- per-project config
     exrc = true,
