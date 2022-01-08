@@ -81,7 +81,7 @@ return packer.startup(function(use)
   use "ap/vim-css-color"
 
   -- surroundings niceties
-  use "jiangmiao/auto-pairs"
+  -- use "jiangmiao/auto-pairs"
   use "rstacruz/vim-closer"
   use "tpope/vim-endwise"
   use "tpope/vim-surround"
