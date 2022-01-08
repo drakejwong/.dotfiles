@@ -71,6 +71,7 @@ alias vi=nvim
 alias py=python3.8
 alias rip=rg
 alias ta='tmux attach'
+alias l='ls -lAh'
 bindkey '^[[A' history-substring-search-up
 bindkey '^[[B' history-substring-search-down
 bindkey -M emacs '^P' history-substring-search-up
