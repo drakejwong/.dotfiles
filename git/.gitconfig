@@ -1,3 +1,5 @@
 [user]
 	email = drakejwong@gmail.com
 	name = Drake Wong
+[core]
+	pager = "less -MR"
