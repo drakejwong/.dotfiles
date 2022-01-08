@@ -41,9 +41,11 @@ eval "$(fasd --init auto)"
 bindkey -e
 
 # TODO: move these
-alias szsh='source $HOME/.zshrc'
+alias srz='source $HOME/.zshrc'
 alias vi=nvim
 alias py=python3.8
+alias rip=rg
+alias ta='tmux attach'
 bindkey '^[[A' history-substring-search-up
 bindkey '^[[B' history-substring-search-down
 bindkey -M emacs '^P' history-substring-search-up
@@ -55,7 +57,7 @@ bindkey '^x^x' edit-command-line
 
 alias ga='git add'
 alias gc='git commit -v'
-alias gp='git push -u origin head'
+alias gp='git push -u origin HEAD'
 alias gr='git reset'
 alias grh='git reset --hard'
 alias gco='git checkout'
@@ -67,3 +69,5 @@ alias gf='git fetch --all --prune'
 alias gl='git pull'
 alias grb='git rebase'
 alias grbc='git rebase --continue'
+
+source "$HOME/.dotfiles/zsh/.zshscale"
