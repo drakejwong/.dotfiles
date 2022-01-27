@@ -125,6 +125,8 @@ return packer.startup(function(use)
     run = ":TSUpdate"
   }
 
+  -- repl master
+  use "hkupty/iron.nvim"
   ------------------------------------------
   -- keep under all plugins for bootstrap --
   ------------------------------------------

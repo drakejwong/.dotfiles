@@ -42,6 +42,12 @@ keymap("n", "<leader>gd", "<cmd>lua require('telescope.builtin').lsp_definitions
 keymap("n", "<leader>gs", "<cmd>lua require('telescope.builtin').git_status()<cr>", opts)
 keymap("n", "<leader>ft", "<cmd>lua require('telescope.builtin').treesitter()<cr>", opts)
 
+-- iron
+keymap("n", "<leader>r", "<cmd>lua require('iron.core').send_motion()<cr>", opts)
+keymap("n", "<leader>rr", "<cmd>lua require('iron.core').send_line()<cr>", opts)
+keymap("n", "<leader>rl", "<cmd>lua require('iron.core').repeat_cmd()<cr>", opts)
+keymap("v", "<leader>r", "<cmd>lua require('iron.core').visual_send()<cr>", opts)
+
 ----- INSERT -----
 
 -- word backspace
@@ -60,3 +66,14 @@ keymap("v", "<A-k>", ":m .-2<CR>==gv", opts)
 keymap("x", "<A-j>", ":move '>+1<CR>gv-gv", opts)
 keymap("x", "<A-k>", ":move '<-2<CR>gv-gv", opts)
 keymap("v", "p", '"_dP', opts)
+
+
+----- TERMINAL -----
+-- esc terminal mode
+keymap("t", "<Esc>", "<C-\\><C-n>", opts)
+
+-- tmux nav
+keymap("t", "<M-h>", ":TmuxNavigateLeft<cr>", opts)
+keymap("t", "<M-j>", ":TmuxNavigateDown<cr>", opts)
+keymap("t", "<M-k>", ":TmuxNavigateUp<cr>", opts)
+keymap("t", "<M-l>", ":TmuxNavigateRight<cr>", opts)

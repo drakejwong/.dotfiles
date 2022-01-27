@@ -6,3 +6,4 @@ require "drake.cmp"
 require "drake.lsp"
 require "drake.telescope"
 -- require "drake.treesitter" -- nix breaking stuff here
+require "drake.iron"
