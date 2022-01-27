@@ -106,4 +106,7 @@ boy() {
     curl -s "cheat.sh/$1"
 }
 
-source "$HOME/.dotfiles/zsh/.zshscale"
+SCALE_ZSHRC="$HOME/.dotfiles/zsh/.zshscale"
+if [[ -f $SCALE_ZSHRC ]]; then
+    source $SCALE_ZSHRC
+fi
