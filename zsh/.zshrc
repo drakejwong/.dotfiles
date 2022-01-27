@@ -102,4 +102,8 @@ alias glg="git log --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset 
 
 export LESS='MR'
 
+boy() {
+    curl -s "cheat.sh/$1"
+}
+
 source "$HOME/.dotfiles/zsh/.zshscale"
