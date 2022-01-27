@@ -21,6 +21,8 @@ setopt hist_verify            # show command with history expansion to user befo
 # cd if command fails
 setopt autocd
 
+# completion
+autoload -Uz compinit && compinit
 # hjkl for completion selection
 zmodload zsh/complist
 bindkey -M menuselect 'h' vi-backward-char
