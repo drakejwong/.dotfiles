@@ -66,6 +66,9 @@ special-forward-word () {
 zle -N special-forward-word
 bindkey '^[f' special-forward-word
 
+alias cp='cp -iv'
+alias mv='mv -iv'
+alias rm='rm -i'
 alias srz='source $HOME/.zshrc'
 alias vi=nvim
 alias py=python3.8
