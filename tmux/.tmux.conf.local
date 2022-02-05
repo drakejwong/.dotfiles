@@ -401,8 +401,8 @@ set -g @continuum-restore 'on'
 # -- custom config -------------------------------------------------------------
 
 # smart session renumbering
-set-hook -g session-created "run $HOME/.dotfiles/tmux/renumber-sessions.sh"
-set-hook -g session-closed "run $HOME/.dotfiles/tmux/renumber-sessions.sh"
+set-hook -g session-created "run $HOME/.dotfiles/tmux/misc/renumber-sessions.sh"
+set-hook -g session-closed "run $HOME/.dotfiles/tmux/misc/renumber-sessions.sh"
 
 # Smart pane switching with awareness of Vim splits.
 # See: https://github.com/christoomey/vim-tmux-navigator
