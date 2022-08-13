@@ -3,3 +3,5 @@
 	name = Drake Wong
 [core]
 	pager = "less -MR"
+[alias]
+	co = checkout
