@@ -1,18 +1,24 @@
-# completion
-# has to go before antibody
-autoload -Uz compinit && compinit
+# znap
+# Download Znap, if it's not there yet.
+[[ -f ~/.config/zsh/znap/zsh-snap/znap.zsh ]] ||
+    git clone --depth 1 -- \ https://github.com/marlonrichert/zsh-snap.git ~/.config/zsh/znap/zsh-snap/znap.zsh
+source ~/.config/zsh/znap/zsh-snap/znap.zsh # Start Znap
 
-# anitbody install plugins
-source $HOME/.zsh_plugins.sh
+# `znap prompt` makes your prompt visible in just 15-40ms!
+znap prompt sindresorhus/pure
 
-# Enable Powerlevel10k instant prompt. Should stay close to the top of ~/.zshrc.
-# Initialization code that may require console input (password prompts, [y/n]
-# confirmations, etc.) must go above this block; everything else may go below.
-if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
-  source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
-fi
-# To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
-[[ ! -f $HOME/.p10k.zsh ]] || source $HOME/.p10k.zsh
+# `znap source` automatically downloads and starts your plugins.
+znap source zsh-users/zsh-autosuggestions
+znap source zsh-users/zsh-completions
+znap source zsh-users/zsh-syntax-highlighting
+znap source zsh-users/zsh-history-substring-search
+
+# `znap eval` caches and runs any kind of command output for you.
+# znap eval iterm2 'curl -fsSL https://iterm2.com/shell_integration/zsh'
+
+# `znap function` lets you lazy-load features you don't always need.
+# znap function _pyenv pyenv 'eval "$( pyenv init - --no-rehash )"'
+# compctl -K    _pyenv pyenv
 
 # history settings
 setopt extended_history       # record timestamp of command in HISTFILE
@@ -38,9 +44,6 @@ if [ -n "${commands[fzf-share]}" ]; then
   source "$(fzf-share)/completion.zsh"
 fi
 [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
-
-# enable fasd
-eval "$(fasd --init auto)"
 
 # emacs keys
 bindkey -e
