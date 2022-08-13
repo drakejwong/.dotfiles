@@ -1,3 +1,7 @@
+# completion
+# has to go before antibody
+autoload -Uz compinit && compinit
+
 # anitbody install plugins
 source $HOME/.zsh_plugins.sh
 
@@ -21,8 +25,6 @@ setopt hist_verify            # show command with history expansion to user befo
 # cd if command fails
 setopt autocd
 
-# completion
-autoload -Uz compinit && compinit
 # hjkl for completion selection
 zmodload zsh/complist
 bindkey -M menuselect 'h' vi-backward-char
@@ -35,6 +37,7 @@ if [ -n "${commands[fzf-share]}" ]; then
   source "$(fzf-share)/key-bindings.zsh"
   source "$(fzf-share)/completion.zsh"
 fi
+[ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
 
 # enable fasd
 eval "$(fasd --init auto)"
@@ -68,15 +71,16 @@ special-forward-word () {
 zle -N special-forward-word
 bindkey '^[f' special-forward-word
 
+alias l='ls -lAh'
 alias cp='cp -iv'
 alias mv='mv -iv'
 alias rm='rm -i'
 alias srz='source $HOME/.zshrc'
-alias vi=nvim
-alias py=python3.8
-alias rip=rg
+alias vi=lvim
+alias py=ptipython
 alias ta='tmux attach'
-alias l='ls -lAh'
+alias apt='apt -y'
+
 bindkey '^[[A' history-substring-search-up
 bindkey '^[[B' history-substring-search-down
 bindkey -M emacs '^P' history-substring-search-up
@@ -86,12 +90,18 @@ autoload edit-command-line
 zle -N edit-command-line
 bindkey '^x^x' edit-command-line
 
+# git
+alias g='git'
 alias ga='git add'
 alias gc='git commit -v'
 alias gp='git push -u origin HEAD'
 alias gr='git reset'
 alias grh='git reset --hard'
-alias gco='git checkout'
+# alias gco='git checkout'
+gco() {
+  git fetch origin $1 ; \
+  git checkout FETCH_HEAD -b $1
+}
 alias gnew='git checkout -b'
 alias gs='git status'
 alias gd='git diff'
