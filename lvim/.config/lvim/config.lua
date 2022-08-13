@@ -20,6 +20,7 @@ lvim.keys.normal_mode["{"] = ':<C-u>execute "keepjumps norm! " . v:count1 . "{"<
 lvim.keys.normal_mode["}"] = ':<C-u>execute "keepjumps norm! " . v:count1 . "}"<CR>'
 lvim.keys.normal_mode["'"] = "`"
 lvim.keys.normal_mode["`"] = "'"
+lvim.keys.normal_mode["<leader>x"] = "<cmd>x<cr>"
 -- unmap a default keymapping
 -- vim.keymap.del("n", "<C-Up>")
 -- override a default keymapping
@@ -52,7 +53,9 @@ lvim.builtin.which_key.mappings["lR"] = { "<cmd>Telescope lsp_references<cr>", "
 -- TODO: User Config for predefined plugins
 -- After changing plugin config exit and reopen LunarVim, Run :PackerInstall :PackerCompile
 lvim.builtin.alpha.active = true
-lvim.builtin.alpha.mode = "dashboard"
+lvim.builtin.alpha.mode = "custom"
+local alpha_opts = require("user.dashboard").config()
+lvim.builtin.alpha.custom = { config = alpha_opts }
 lvim.builtin.notify.active = true
 lvim.builtin.terminal.active = true
 lvim.builtin.nvimtree.setup.view.side = "left"
@@ -73,6 +76,7 @@ lvim.builtin.treesitter.ensure_installed = {
   "java",
   "yaml",
   "graphql",
+  "prisma",
 }
 
 lvim.builtin.treesitter.ignore_install = { "haskell" }
@@ -155,14 +159,24 @@ lvim.builtin.treesitter.highlight.enabled = true
 
 -- Additional Plugins
 lvim.plugins = {
-    -- {"folke/tokyonight.nvim"},
-    {
-      "folke/trouble.nvim",
-      cmd = "TroubleToggle",
-    },
-  {"christoomey/vim-tmux-navigator"},
-  {"hkupty/iron.nvim"},
-  {"kevinhwang91/nvim-bqf"},
+  -- {"folke/tokyonight.nvim"},
+  {
+    "folke/trouble.nvim",
+    cmd = "TroubleToggle",
+  },
+  { "christoomey/vim-tmux-navigator" },
+  { "hkupty/iron.nvim" },
+  { "kevinhwang91/nvim-bqf" },
+  {
+    "folke/persistence.nvim",
+    event = "BufReadPre", -- this will only start session saving when an actual file was opened
+    module = "persistence",
+    config = function()
+      require("persistence").setup {
+        options = { "buffers", "curdir", "tabpages", "winsize" },
+      }
+    end,
+  },
 }
 
 -- Autocommands (https://neovim.io/doc/user/autocmd.html)
@@ -202,7 +216,7 @@ iron.setup {
     -- Your repl definitions come here
     repl_definition = {
       sh = {
-        command = {"zsh"}
+        command = { "zsh" }
       },
       python = require("iron.fts.python").ptipython,
     },
@@ -240,42 +254,42 @@ iron.setup {
 -- better quickfix list
 local bqf = require('bqf')
 bqf.setup {
-    auto_enable = true,
-    magic_window = true,
-    auto_resize_height = true, -- highly recommended enable
-    preview = {
-        auto_preview = true,
-        win_height = 12,
-        win_vheight = 12,
-        delay_syntax = 80,
-        border_chars = {'┃', '┃', '━', '━', '┏', '┓', '┗', '┛', '█'},
-        should_preview_cb = function(bufnr, qwinid)
-            local ret = true
-            local bufname = vim.api.nvim_buf_get_name(bufnr)
-            local fsize = vim.fn.getfsize(bufname)
-            if fsize > 100 * 1024 then
-                -- skip file size greater than 100k
-                ret = false
-            elseif bufname:match('^fugitive://') then
-                -- skip fugitive buffer
-                ret = false
-            end
-            return ret
-        end
-    },
-    -- make `drop` and `tab drop` to become preferred
-    func_map = {
-        drop = 'o',
-        openc = 'O',
-        split = '<C-s>',
-        tabdrop = '<C-t>',
-        tabc = '',
-        ptogglemode = 'z,',
-    },
-    filter = {
-        fzf = {
-            action_for = {['ctrl-s'] = 'split', ['ctrl-t'] = 'tab drop'},
-            extra_opts = {'--bind', 'ctrl-o:toggle-all', '--prompt', '> '}
-        }
+  auto_enable = true,
+  magic_window = true,
+  auto_resize_height = true, -- highly recommended enable
+  preview = {
+    auto_preview = true,
+    win_height = 12,
+    win_vheight = 12,
+    delay_syntax = 80,
+    border_chars = { '┃', '┃', '━', '━', '┏', '┓', '┗', '┛', '█' },
+    should_preview_cb = function(bufnr, qwinid)
+      local ret = true
+      local bufname = vim.api.nvim_buf_get_name(bufnr)
+      local fsize = vim.fn.getfsize(bufname)
+      if fsize > 100 * 1024 then
+        -- skip file size greater than 100k
+        ret = false
+      elseif bufname:match('^fugitive://') then
+        -- skip fugitive buffer
+        ret = false
+      end
+      return ret
+    end
+  },
+  -- make `drop` and `tab drop` to become preferred
+  func_map = {
+    drop = 'o',
+    openc = 'O',
+    split = '<C-s>',
+    tabdrop = '<C-t>',
+    tabc = '',
+    ptogglemode = 'z,',
+  },
+  filter = {
+    fzf = {
+      action_for = { ['ctrl-s'] = 'split', ['ctrl-t'] = 'tab drop' },
+      extra_opts = { '--bind', 'ctrl-o:toggle-all', '--prompt', '> ' }
     }
+  }
 }
