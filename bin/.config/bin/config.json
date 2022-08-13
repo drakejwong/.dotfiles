@@ -1,0 +1,41 @@
+{
+    "default_path": "/home/drake/.local/bin",
+    "bins": {
+        "/home/drake/.local/bin": {
+            "path": "/home/drake/.local/bin",
+            "remote_name": "bin_i386",
+            "version": "v0.15.1",
+            "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "url": "github.com/marcosnils/bin",
+            "provider": "github",
+            "package_path": ""
+        },
+        "/home/drake/.local/bin/gh": {
+            "path": "/home/drake/.local/bin/gh",
+            "remote_name": "gh",
+            "version": "v2.14.3",
+            "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "url": "github.com/cli/cli",
+            "provider": "github",
+            "package_path": "gh_2.14.3_linux_386/bin/gh"
+        },
+        "/home/drake/.local/bin/lazygit": {
+            "path": "/home/drake/.local/bin/lazygit",
+            "remote_name": "lazygit",
+            "version": "v0.35",
+            "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "url": "github.com/jesseduffield/lazygit",
+            "provider": "github",
+            "package_path": "lazygit"
+        },
+        "/home/drake/.local/bin/pscale": {
+            "path": "/home/drake/.local/bin/pscale",
+            "remote_name": "pscale",
+            "version": "v0.112.0",
+            "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "url": "https://github.com/planetscale/cli/releases/tag/v0.112.0",
+            "provider": "",
+            "package_path": "pscale"
+        }
+    }
+}
