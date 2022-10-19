@@ -13,8 +13,8 @@ lvim.colorscheme = "onedarker"
 -- lvim.use_icons = false
 lvim.builtin.project = {
   manual_mode = true,
-  detection_methods = {"pattern"},
-  patterns = {".git"},
+  detection_methods = { "pattern" },
+  patterns = { ".git" },
   show_hidden = true,
 }
 
@@ -27,6 +27,8 @@ lvim.keys.normal_mode["}"] = ':<C-u>execute "keepjumps norm! " . v:count1 . "}"<
 lvim.keys.normal_mode["'"] = "`"
 lvim.keys.normal_mode["`"] = "'"
 lvim.keys.normal_mode["<leader>x"] = "<cmd>x<cr>"
+lvim.keys.normal_mode["<S-l>"] = ":BufferLineCycleNext<CR>"
+lvim.keys.normal_mode["<S-h>"] = ":BufferLineCyclePrev<CR>"
 -- unmap a default keymapping
 -- vim.keymap.del("n", "<C-Up>")
 -- override a default keymapping
@@ -185,8 +187,7 @@ lvim.plugins = {
       }
     end,
   },
-  { "kevinhwang91/nvim-bqf" },
-  { "nvim-treesitter/nvim-treesitter-context"},
+  { "nvim-treesitter/nvim-treesitter-context" },
 }
 
 -- Autocommands (https://neovim.io/doc/user/autocmd.html)
@@ -216,46 +217,46 @@ lvim.builtin.which_key.mappings["t"] = {
 
 -- -- REPL config
 --
-local iron = require("iron.core")
-iron.setup {
-  config = {
-    -- If iron should expose `<plug>(...)` mappings for the plugins
-    should_map_plug = false,
-    -- Whether a repl should be discarded or not
-    scratch_repl = false,
-    -- Your repl definitions come here
-    repl_definition = {
-      sh = {
-        command = { "zsh" }
-      },
-      python = require("iron.fts.python").ptipython,
-    },
-    repl_open_cmd = require('iron.view').curry.right(80),
-    -- how the REPL window will be opened, the default is opening
-    -- a float window of height 40 at the bottom.
-  },
-  -- Iron doesn't set keymaps by default anymore. Set them here
-  -- or use `should_map_plug = true` and map from you vim files
-  keymaps = {
-    send_motion = "<space>rs",
-    visual_send = "<space>rs",
-    send_file = "<space>rf",
-    send_line = "<space>rl",
-    send_mark = "<space>rM",
-    mark_motion = "<space>rm",
-    mark_visual = "<space>rm",
-    remove_mark = "<space>r'",
-    cr = "<space>r<cr>",
-    interrupt = "<space>r<space>",
-    exit = "<space>rq",
-    clear = "<space>rc",
-  },
-  -- If the highlight is on, you can change how it looks
-  -- For the available options, check nvim_set_hl
-  highlight = {
-    italic = true
-  }
-}
+-- local iron = require("iron.core")
+-- iron.setup {
+--   config = {
+--     -- If iron should expose `<plug>(...)` mappings for the plugins
+--     should_map_plug = false,
+--     -- Whether a repl should be discarded or not
+--     scratch_repl = false,
+--     -- Your repl definitions come here
+--     repl_definition = {
+--       sh = {
+--         command = { "zsh" }
+--       },
+--       python = require("iron.fts.python").ptipython,
+--     },
+--     repl_open_cmd = require('iron.view').curry.right(80),
+--     -- how the REPL window will be opened, the default is opening
+--     -- a float window of height 40 at the bottom.
+--   },
+--   -- Iron doesn't set keymaps by default anymore. Set them here
+--   -- or use `should_map_plug = true` and map from you vim files
+--   keymaps = {
+--     send_motion = "<space>rs",
+--     visual_send = "<space>rs",
+--     send_file = "<space>rf",
+--     send_line = "<space>rl",
+--     send_mark = "<space>rM",
+--     mark_motion = "<space>rm",
+--     mark_visual = "<space>rm",
+--     remove_mark = "<space>r'",
+--     cr = "<space>r<cr>",
+--     interrupt = "<space>r<space>",
+--     exit = "<space>rq",
+--     clear = "<space>rc",
+--   },
+--   -- If the highlight is on, you can change how it looks
+--   -- For the available options, check nvim_set_hl
+--   highlight = {
+--     italic = true
+--   }
+-- }
 -- TODO
 -- lvim.builtin.which_key.mappings["r"] = {
 --   name = "+Iron",
@@ -305,42 +306,42 @@ bqf.setup {
 }
 
 local tscontext = require('treesitter-context')
-tscontext.setup{
-    enable = true, -- Enable this plugin (Can be enabled/disabled later via commands)
-    max_lines = 0, -- How many lines the window should span. Values <= 0 mean no limit.
-    -- trim_scope = 'outer', -- Which context lines to discard if `max_lines` is exceeded. Choices: 'inner', 'outer'
-    patterns = { -- Match patterns for TS nodes. These get wrapped to match at word boundaries.
-        -- For all filetypes
-        -- Note that setting an entry here replaces all other patterns for this entry.
-        -- By setting the 'default' entry below, you can control which nodes you want to
-        -- appear in the context window.
-        default = {
-            'class',
-            'function',
-            'method',
-            'for',
-            'while',
-            'if',
-            'case',
-            'switch',
-        },
-        -- Example for a specific filetype.
-        -- If a pattern is missing, *open a PR* so everyone can benefit.
-        --   rust = {
-        --       'impl_item',
-        --   },
+tscontext.setup {
+  enable = true, -- Enable this plugin (Can be enabled/disabled later via commands)
+  max_lines = 0, -- How many lines the window should span. Values <= 0 mean no limit.
+  -- trim_scope = 'outer', -- Which context lines to discard if `max_lines` is exceeded. Choices: 'inner', 'outer'
+  patterns = { -- Match patterns for TS nodes. These get wrapped to match at word boundaries.
+    -- For all filetypes
+    -- Note that setting an entry here replaces all other patterns for this entry.
+    -- By setting the 'default' entry below, you can control which nodes you want to
+    -- appear in the context window.
+    default = {
+      'class',
+      'function',
+      'method',
+      'for',
+      'while',
+      'if',
+      'case',
+      'switch',
     },
-    exact_patterns = {
-        -- Example for a specific filetype with Lua patterns
-        -- Treat patterns.rust as a Lua pattern (i.e "^impl_item$" will
-        -- exactly match "impl_item" only)
-        -- rust = true,
-    },
+    -- Example for a specific filetype.
+    -- If a pattern is missing, *open a PR* so everyone can benefit.
+    --   rust = {
+    --       'impl_item',
+    --   },
+  },
+  exact_patterns = {
+    -- Example for a specific filetype with Lua patterns
+    -- Treat patterns.rust as a Lua pattern (i.e "^impl_item$" will
+    -- exactly match "impl_item" only)
+    -- rust = true,
+  },
 
-    -- [!] The options below are exposed but shouldn't require your attention,
-    --     you can safely ignore them.
+  -- [!] The options below are exposed but shouldn't require your attention,
+  --     you can safely ignore them.
 
-    zindex = 20, -- The Z-index of the context window
-    mode = 'cursor',  -- Line used to calculate context. Choices: 'cursor', 'topline'
-    separator = nil, -- Separator between context and content. Should be a single character string, like '-'.
+  zindex = 20, -- The Z-index of the context window
+  mode = 'cursor', -- Line used to calculate context. Choices: 'cursor', 'topline'
+  separator = nil, -- Separator between context and content. Should be a single character string, like '-'.
 }
