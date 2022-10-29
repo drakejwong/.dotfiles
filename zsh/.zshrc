@@ -5,12 +5,12 @@ if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]
   source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
 fi
 
-zstyle ':znap:*' repos-dir ~/.config/zsh/znap
-source ~/.config/zsh/znap/zsh-snap/znap.zsh
 # znap
 # Download Znap, if it's not there yet.
-[[ -f ~/.config/zsh/znap/zsh-snap/znap.zsh ]] ||
-    git clone --depth 1 -- \ https://github.com/marlonrichert/zsh-snap.git ~/.config/zsh/znap/zsh-snap/znap.zsh
+[[ -f $HOME/.config/zsh/znap/znap.zsh ]] ||
+    git clone --depth 1 -- "https://github.com/marlonrichert/zsh-snap.git" "$HOME/.config/zsh/znap"
+source $HOME/.config/zsh/znap/znap.zsh
+zstyle ':znap:*' repos-dir $HOME/.config/zsh/znap
 
 # `znap prompt` makes your prompt visible in just 15-40ms!
 znap prompt romkatv/powerlevel10k
