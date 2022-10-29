@@ -16,4 +16,5 @@ lvim.plugins = {
     end,
   },
   { "nvim-treesitter/nvim-treesitter-context" },
+  { "j-hui/fidget.nvim" },
 }
