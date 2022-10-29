@@ -219,52 +219,51 @@ vim.api.nvim_create_autocmd("FileType", {
   end,
 })
 
--- -- REPL config
---
--- local iron = require("iron.core")
--- iron.setup {
---   config = {
---     -- If iron should expose `<plug>(...)` mappings for the plugins
---     should_map_plug = false,
---     -- Whether a repl should be discarded or not
---     scratch_repl = false,
---     -- Your repl definitions come here
---     repl_definition = {
---       sh = {
---         command = { "zsh" }
---       },
---       python = require("iron.fts.python").ptipython,
---     },
---     repl_open_cmd = require('iron.view').curry.right(80),
---     -- how the REPL window will be opened, the default is opening
---     -- a float window of height 40 at the bottom.
---   },
---   -- Iron doesn't set keymaps by default anymore. Set them here
---   -- or use `should_map_plug = true` and map from you vim files
---   keymaps = {
---     send_motion = "<space>rs",
---     visual_send = "<space>rs",
---     send_file = "<space>rf",
---     send_line = "<space>rl",
---     send_mark = "<space>rM",
---     mark_motion = "<space>rm",
---     mark_visual = "<space>rm",
---     remove_mark = "<space>r'",
---     cr = "<space>r<cr>",
---     interrupt = "<space>r<space>",
---     exit = "<space>rq",
---     clear = "<space>rc",
---   },
---   -- If the highlight is on, you can change how it looks
---   -- For the available options, check nvim_set_hl
---   highlight = {
---     italic = true
---   }
--- }
--- TODO
--- lvim.builtin.which_key.mappings["r"] = {
---   name = "+Iron",
--- }
+-- REPL config
+local iron = require("iron.core")
+
+iron.setup {
+  config = {
+    -- Whether a repl should be discarded or not
+    scratch_repl = true,
+    -- Your repl definitions come here
+    repl_definition = {
+      sh = {
+        command = { "zsh" }
+      },
+      python = require("iron.fts.python").ptipython,
+    },
+    -- How the repl window will be displayed
+    -- See below for more information
+    repl_open_cmd = require('iron.view').bottom(40),
+  },
+  -- Iron doesn't set keymaps by default anymore.
+  -- You can set them here or manually add keymaps to the functions in iron.core
+  keymaps = {
+    send_motion = "<space>rs",
+    visual_send = "<space>rs",
+    send_file = "<space>rf",
+    send_line = "<space>rl",
+    send_mark = "<space>rM",
+    mark_motion = "<space>rm",
+    mark_visual = "<space>rm",
+    remove_mark = "<space>r'",
+    cr = "<space>r<cr>",
+    interrupt = "<space>r<space>",
+    exit = "<space>rq",
+    clear = "<space>rc",
+  },
+  -- If the highlight is on, you can change how it looks
+  -- For the available options, check nvim_set_hl
+  highlight = {
+    italic = true
+  }
+}
+-- iron also has a list of commands, see :h iron-commands for all available commands
+-- vim.keymap.set('n', '<space>rs', '<cmd>IronRepl<cr>')
+-- vim.keymap.set('n', '<space>rr', '<cmd>IronRestart<cr>')
+-- vim.keymap.set('n', '<space>rf', '<cmd>IronFocus<cr>')
+-- vim.keymap.set('n', '<space>rh', '<cmd>IronHide<cr>')
 
 -- better quickfix list
 local bqf = require('bqf')
