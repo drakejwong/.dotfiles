@@ -118,13 +118,15 @@ alias gs='git status'
 alias gd='git diff'
 alias gds='git diff --staged'
 alias gf='git fetch --all --prune'
-alias gl='git pull'
+alias gl='git fetch --all --prune && git pull'
 alias grb='git rebase'
 alias grbm='git rebase origin/master'
 alias grbc='git rebase --continue'
+alias grba='git rebase --abort'
 alias glg="git log --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset' --abbrev-commit --color=always"
-alias gss="git stash save"
+alias gss="git stash save -u"
 alias gsp="git stash pop"
+alias gb="git branch"
 
 export LESS='MR'
 
