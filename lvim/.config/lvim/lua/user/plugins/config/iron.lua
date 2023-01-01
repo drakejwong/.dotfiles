@@ -35,8 +35,10 @@ iron.setup {
   -- For the available options, check nvim_set_hl
   highlight = {
     italic = true
-  }
+  },
+  ignore_blank_lines = false, -- ignore blank lines when sending visual select lines
 }
+
 -- iron also has a list of commands, see :h iron-commands for all available commands
 -- vim.keymap.set('n', '<space>rs', '<cmd>IronRepl<cr>')
 -- vim.keymap.set('n', '<space>rr', '<cmd>IronRestart<cr>')
