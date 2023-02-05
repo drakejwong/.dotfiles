@@ -61,6 +61,13 @@ lvim.builtin.which_key.mappings["t"] = {
 lvim.builtin.telescope.defaults.layout_config.prompt_position = "top"
 lvim.builtin.telescope.defaults.sorting_strategy = "ascending"
 lvim.builtin.telescope.defaults.file_ignore_patterns = { "node_modules", "%.cjs" }
+lvim.builtin.telescope.defaults.initial_mode = "insert"
+lvim.builtin.telescope.defaults.layout_config.horizontal.mirror = false
+lvim.builtin.telescope.defaults.layout_config.preview_cutoff = 120
+lvim.builtin.telescope.defaults.layout_config.prompt_position = "bottom"
+lvim.builtin.telescope.defaults.layout_config.vertical.mirror = false
+lvim.builtin.telescope.defaults.layout_config.width = 0.75
+lvim.builtin.telescope.defaults.layout_strategy = "horizontal"
 lvim.builtin.which_key.mappings["f"] = { "<cmd>Telescope find_files<cr>", "Files" }
 lvim.builtin.which_key.mappings["gf"] = { "<cmd>Telescope find_files<cr>", "Git Files" }
 lvim.builtin.which_key.mappings["lR"] = { "<cmd>Telescope lsp_references<cr>", "References" }
@@ -119,6 +126,12 @@ lvim.builtin.treesitter.highlight.enabled = true
 -- vim.list_extend(lvim.lsp.automatic_configuration.skipped_servers, { "pyright" })
 -- local opts = {} -- check the lspconfig documentation for a list of all possible options
 -- require("lvim.lsp.manager").setup("pyright", opts)
+lvim.lang.python.lsp.setup.settings = {
+  python = {
+    pythonPath = "python",
+    venvPath = "venv",
+  },
+}
 
 -- ---remove a server from the skipped list, e.g. eslint, or emmet_ls. !!Requires `:LvimCacheReset` to take effect!!
 -- ---`:LvimInfo` lists which server(s) are skipped for the current filetype
