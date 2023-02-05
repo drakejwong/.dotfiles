@@ -19,6 +19,8 @@ lvim.plugins = {
   { "nacro90/numb.nvim" },
   { "aserowy/tmux.nvim" },
   { "echasnovski/mini.nvim" },
+  { "kylechui/nvim-surround" },
+  { "sindrets/diffview.nvim" },
 }
 
 -- plugin config
@@ -33,3 +35,4 @@ require("user.plugins.config.tscontext")
 -- oneline config
 -- require("mini.surround").setup()
 require("numb").setup()
+require("nvim-surround").setup()
