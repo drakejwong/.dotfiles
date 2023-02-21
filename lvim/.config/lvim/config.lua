@@ -1,2 +1,2 @@
-require("user.options")
-require("user.plugins")
+reload("user.options")
+reload("user.plugins")
