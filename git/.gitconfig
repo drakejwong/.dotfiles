@@ -5,3 +5,16 @@
 	pager = "less -MR"
 [alias]
 	co = checkout
+[maintenance]
+	repo = /Users/drakewong/.config/zsh/powerlevel10k
+	repo = /Users/drakewong/.config/zsh/znap
+	repo = /Users/drakewong/.config/zsh/zsh-autosuggestions
+	repo = /Users/drakewong/.config/zsh/zsh-completions
+	repo = /Users/drakewong/.config/zsh/zsh-history-substring-search
+	repo = /Users/drakewong/.config/zsh/zsh-syntax-highlighting
+	repo = /Users/drakewong/.config/zsh/znap/.git
+	repo = /Users/drakewong/.config/zsh/znap/powerlevel10k
+	repo = /Users/drakewong/.config/zsh/znap/zsh-autosuggestions
+	repo = /Users/drakewong/.config/zsh/znap/zsh-completions
+	repo = /Users/drakewong/.config/zsh/znap/zsh-history-substring-search
+	repo = /Users/drakewong/.config/zsh/znap/zsh-syntax-highlighting
