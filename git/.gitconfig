@@ -4,7 +4,23 @@
 [core]
 	pager = "less -MR"
 [alias]
-	co = checkout
+	a = "add"
+  b = "branch"
+	c = "commit"
+	co = "checkout"
+	d = "diff"
+	ds = "diff --staged"
+  f = "sync"
+  l = "pull"
+  lg = "log --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset' --abbrev-commit --color=always"
+  m = "merge"
+  mm = ! "git fetch --all --prune && git merge origin/main"
+  rb = "rebase"
+  s = "status"
+  st = "stash"
+  sync = ! "git fetch --all --prune && git for-each-ref --format '%(refname:short) %(upstream:track)' | awk '$2 == \"[gone]\" {print $1}' | xargs -r git branch -D"
+  new = "checkout -b"
+  push = "push -u origin HEAD"
 [maintenance]
 	repo = /Users/drakewong/.config/zsh/powerlevel10k
 	repo = /Users/drakewong/.config/zsh/znap
