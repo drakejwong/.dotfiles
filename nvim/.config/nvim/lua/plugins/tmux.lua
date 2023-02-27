@@ -10,6 +10,7 @@ return {
     },
   },
   keys = {
+    -- TODO: put these in insert mode too
     {
       "<C-h>",
       function()
