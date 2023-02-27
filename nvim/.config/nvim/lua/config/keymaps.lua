@@ -15,6 +15,9 @@ end
 map("n", "<leader>w", "<cmd>w<CR>")
 map("n", "<leader>h", "<cmd>noh<CR>")
 
+-- TODO: doesn't work
+map("n", "<leader>S-F", "<leader>fF", { desc = "Find Files (cwd)" })
+
 -- Emacs keybindings in insert mode
 map("i", "<C-a>", "<Home>")
 map("i", "<C-b>", "<Left>")

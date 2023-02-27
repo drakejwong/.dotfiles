@@ -104,29 +104,29 @@ bindkey '^x^x' edit-command-line
 # git
 alias g='git'
 alias ga='git add'
-alias gc='git commit -v'
+alias gb="git branch"
+alias gc='git commit --visual'
+alias gcm='git commit --amend --no-edit'
+alias gco='git checkout'
+alias gd='git diff'
+alias gds='git diff --staged'
+alias gf='git sync' # requires .gitconfig
+alias gl='git pull'
+alias glg="git log --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset' --abbrev-commit --color=always"
+alias gm='git merge'
+alias gma='git merge --abort'
+alias gmm='git merge origin/$(basename $(git symbolic-ref refs/remotes/origin/HEAD))'
 alias gp='git push -u origin HEAD'
 alias gr='git reset'
 alias grh='git reset --hard'
-# alias gco='git checkout'
-gco() {
-  git fetch origin $1 ; \
-  git checkout FETCH_HEAD -b $1
-}
-alias gnew='git checkout -b'
 alias gs='git status'
-alias gd='git diff'
-alias gds='git diff --staged'
-alias gf='git fetch --all --prune'
-alias gl='git fetch --all --prune && git pull'
 alias grb='git rebase'
-alias grbm='git rebase origin/master'
+alias grbm='git rebase origin/$(basename $(git symbolic-ref refs/remotes/origin/HEAD))'
 alias grbc='git rebase --continue'
 alias grba='git rebase --abort'
-alias glg="git log --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset' --abbrev-commit --color=always"
 alias gss="git stash save -u"
 alias gsp="git stash pop"
-alias gb="git branch"
+alias gnew='git checkout -b'
 
 export LESS='MR'
 
