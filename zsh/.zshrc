@@ -105,7 +105,7 @@ bindkey '^x^x' edit-command-line
 alias g='git'
 alias ga='git add'
 alias gb="git branch"
-alias gc='git commit --visual'
+alias gc='git commit --verbose'
 alias gcm='git commit --amend --no-edit'
 alias gco='git checkout'
 alias gd='git diff'
