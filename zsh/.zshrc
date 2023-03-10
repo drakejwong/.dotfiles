@@ -20,6 +20,7 @@ znap source zsh-users/zsh-autosuggestions
 znap source zsh-users/zsh-completions
 znap source zsh-users/zsh-syntax-highlighting
 znap source zsh-users/zsh-history-substring-search
+znap source agkozak/zsh-z
 
 # `znap eval` caches and runs any kind of command output for you.
 # znap eval iterm2 'curl -fsSL https://iterm2.com/shell_integration/zsh'
@@ -145,3 +146,19 @@ fi
 export NVM_DIR="$HOME/.config/nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
 [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
+
+# >>> conda initialize >>>
+# !! Contents within this block are managed by 'conda init' !!
+__conda_setup="$('/home/drake/dev/.environment/bin/conda' 'shell.zsh' 'hook' 2> /dev/null)"
+if [ $? -eq 0 ]; then
+    eval "$__conda_setup"
+else
+    if [ -f "/home/drake/dev/.environment/etc/profile.d/conda.sh" ]; then
+        . "/home/drake/dev/.environment/etc/profile.d/conda.sh"
+    else
+        export PATH="/home/drake/dev/.environment/bin:$PATH"
+    fi
+fi
+unset __conda_setup
+# <<< conda initialize <<<
+
