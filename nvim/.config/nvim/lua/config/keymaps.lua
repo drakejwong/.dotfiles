@@ -12,7 +12,8 @@ local function map(mode, lhs, rhs, opts)
   end
 end
 
-map("n", "<leader>w", "<cmd>w<CR>")
+map("n", "<leader>w", "<cmd>noa w<CR>")
+map("n", "<leader>x", "<cmd>noa x<CR>")
 map("n", "<leader>h", "<cmd>noh<CR>")
 
 -- TODO: doesn't work
