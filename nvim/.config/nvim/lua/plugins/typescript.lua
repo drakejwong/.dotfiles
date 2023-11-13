@@ -11,6 +11,7 @@ return {
       })
     end,
   },
+
   {
     "williamboman/mason.nvim",
     opts = function(_, opts)
@@ -28,6 +29,7 @@ return {
       })
     end,
   },
+
   {
     "nvimtools/none-ls.nvim",
     opts = function(_, opts)
@@ -48,6 +50,7 @@ return {
       })
     end,
   },
+
   {
     "neovim/nvim-lspconfig",
     opts = {
