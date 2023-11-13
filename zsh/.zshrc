@@ -92,6 +92,7 @@ alias vi=nvim
 alias py=ptipython
 alias ta='tmux attach'
 alias apt='apt -y'
+alias p='pnpm'
 
 bindkey '^[[A' history-substring-search-up
 bindkey '^[[B' history-substring-search-down
@@ -164,3 +165,11 @@ unset __conda_setup
 
 fpath+=~/.zfunc
 autoload -Uz compinit && compinit
+
+# pnpm
+export PNPM_HOME="/home/drake/.local/share/pnpm"
+case ":$PATH:" in
+  *":$PNPM_HOME:"*) ;;
+  *) export PATH="$PNPM_HOME:$PATH" ;;
+esac
+# pnpm end

@@ -34,3 +34,10 @@
 	repo = /Users/drakewong/.config/zsh/znap/zsh-completions
 	repo = /Users/drakewong/.config/zsh/znap/zsh-history-substring-search
 	repo = /Users/drakewong/.config/zsh/znap/zsh-syntax-highlighting
+	repo = /home/drake/.config/zsh/powerlevel10k
+	repo = /home/drake/.config/zsh/znap
+	repo = /home/drake/.config/zsh/zsh-autosuggestions
+	repo = /home/drake/.config/zsh/zsh-completions
+	repo = /home/drake/.config/zsh/zsh-history-substring-search
+	repo = /home/drake/.config/zsh/zsh-syntax-highlighting
+	repo = /home/drake/.config/zsh/zsh-z
