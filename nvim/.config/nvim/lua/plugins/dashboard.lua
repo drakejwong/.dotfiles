@@ -173,7 +173,7 @@ local get_logo = function()
 end
 
 return {
-  "nvimmdev/dashboard.nvim",
+  "nvimdev/dashboard-nvim",
   event = "VimEnter",
   opts = function()
     local logo = get_logo()
