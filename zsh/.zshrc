@@ -172,4 +172,15 @@ case ":$PATH:" in
   *":$PNPM_HOME:"*) ;;
   *) export PATH="$PNPM_HOME:$PATH" ;;
 esac
+export PNPM_HOME="/Users/drake/.local/share/pnpm"
+case ":$PATH:" in
+  *":$PNPM_HOME:"*) ;;
+  *) export PATH="$PNPM_HOME:$PATH" ;;
+esac
 # pnpm end
+
+# asdf
+. "$HOME/.asdf/asdf.sh"
+
+fpath=(${ASDF_DIR}/completions $fpath)
+autoload -Uz compinit && compinit
