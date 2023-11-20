@@ -184,3 +184,10 @@ esac
 
 fpath=(${ASDF_DIR}/completions $fpath)
 autoload -Uz compinit && compinit
+
+# bun completions
+[ -s "/home/drake/.bun/_bun" ] && source "/home/drake/.bun/_bun"
+
+# bun
+export BUN_INSTALL="$HOME/.bun"
+export PATH="$BUN_INSTALL/bin:$PATH"
