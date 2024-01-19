@@ -178,12 +178,6 @@ case ":$PATH:" in
 esac
 # pnpm end
 
-# asdf
-. "$HOME/.asdf/asdf.sh"
-
-fpath=(${ASDF_DIR}/completions $fpath)
-autoload -Uz compinit && compinit
-
 # bun completions
 [ -s "/home/drake/.bun/_bun" ] && source "/home/drake/.bun/_bun"
 
