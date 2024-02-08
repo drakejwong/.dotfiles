@@ -41,3 +41,8 @@
 	repo = /home/drake/.config/zsh/zsh-history-substring-search
 	repo = /home/drake/.config/zsh/zsh-syntax-highlighting
 	repo = /home/drake/.config/zsh/zsh-z
+[filter "lfs"]
+	smudge = git-lfs smudge -- %f
+	process = git-lfs filter-process
+	required = true
+	clean = git-lfs clean -- %f
