@@ -15,6 +15,7 @@ export SAVEHIST=1000000
 # . "$HOME/.cargo/env"
 
 # Load AWS credentials
+export AWS_SDK_JS_SUPPRESS_MAINTENANCE_MODE_MESSAGE='1'
 
 export PKG_CONFIG_PATH="/opt/homebrew/Library/Homebrew/os/mac/pkgconfig/"
 
