@@ -76,18 +76,58 @@ end
 ------------------
 ------ KEYS ------
 ------------------
-config.leader = { key = "z", mods = "CTRL", timeout_milliseconds = 1000 }
+config.leader = { key = "s", mods = "CTRL", timeout_milliseconds = 1000 }
 config.keys = {
 	-- move
-	-- split_nav("move", "h"),
-	-- split_nav("move", "j"),
-	-- split_nav("move", "k"),
-	-- split_nav("move", "l"),
+	split_nav("move", "h"),
+	split_nav("move", "j"),
+	split_nav("move", "k"),
+	split_nav("move", "l"),
+  {
+    key = "h",
+    mods = "LEADER",
+    action = wezterm.action({ ActivatePaneDirection = "Left" }),
+  },
+  {
+    key = "j",
+    mods = "LEADER",
+    action = wezterm.action({ ActivatePaneDirection = "Down" }),
+  },
+  {
+    key = "k",
+    mods = "LEADER",
+    action = wezterm.action({ ActivatePaneDirection = "Up" }),
+  },
+  {
+    key = "l",
+    mods = "LEADER",
+    action = wezterm.action({ ActivatePaneDirection = "Right" }),
+  },
 	-- resize
-	-- split_nav("resize", "h"),
-	-- split_nav("resize", "j"),
-	-- split_nav("resize", "k"),
-	-- split_nav("resize", "l"),
+	split_nav("resize", "h"),
+	split_nav("resize", "j"),
+	split_nav("resize", "k"),
+	split_nav("resize", "l"),
+  {
+    key = "H",
+    mods = "LEADER",
+    action = wezterm.action({ AdjustPaneSize = { "Left", 3 } }),
+  },
+  {
+    key = "J",
+    mods = "LEADER",
+    action = wezterm.action({ AdjustPaneSize = { "Down", 3 } }),
+  },
+  {
+    key = "K",
+    mods = "LEADER",
+    action = wezterm.action({ AdjustPaneSize = { "Up", 3 } }),
+  },
+  {
+    key = "L",
+    mods = "LEADER",
+    action = wezterm.action({ AdjustPaneSize = { "Right", 3 } }),
+  },
 	-- swap
 	{
 		key = "{",
