@@ -180,3 +180,6 @@ esac
 
 # bun completions
 [ -s "/home/drake/.bun/_bun" ] && source "/home/drake/.bun/_bun"
+
+# rustup
+source "$HOME/.cargo/env"
