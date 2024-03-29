@@ -32,7 +32,31 @@ return {
     "neovim/nvim-lspconfig",
     opts = {
       servers = {
-        tailwindcss = {},
+        ---@type lspconfig.options.tsserver
+        tsserver = {
+          root_dir = require('lspconfig.util').root_pattern(".git"),
+          keys = {
+            {
+              "<leader>cR",
+              function()
+                vim.lsp.buf.code_action({
+                  apply = true,
+                  context = {
+                    only = { "source.removeUnused.ts" },
+                    diagnostics = {},
+                  },
+                })
+              end,
+              desc = "Remove Unused Imports",
+            },
+          },
+          ---@diagnostic disable-next-line: missing-fields
+          settings = {
+            completions = {
+              completeFunctionCalls = true,
+            },
+          },
+        },
       },
     },
   },
