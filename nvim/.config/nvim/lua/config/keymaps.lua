@@ -39,3 +39,5 @@ map("i", "<C-X><C-S>", "<Esc>:w<CR>a")
 -- paste: fix wsl ^M
 map("n", "p", "p<cmd>%s/\r$//g<CR>")
 map("n", "P", "P<cmd>%s/\r$//g<CR>")
+map("v", "p", "p<cmd>%s/\r$//g<CR>")
+map("v", "P", "P<cmd>%s/\r$//g<CR>")
