@@ -20,7 +20,6 @@ znap source zsh-users/zsh-autosuggestions
 znap source zsh-users/zsh-completions
 znap source zsh-users/zsh-syntax-highlighting
 znap source zsh-users/zsh-history-substring-search
-znap source agkozak/zsh-z
 
 # `znap eval` caches and runs any kind of command output for you.
 # znap eval iterm2 'curl -fsSL https://iterm2.com/shell_integration/zsh'
@@ -47,12 +46,17 @@ bindkey -M menuselect 'j' vi-down-line-or-history
 bindkey -M menuselect 'k' vi-up-line-or-history
 bindkey -M menuselect 'l' vi-forward-char
 
-# enable fzf
-if [ -n "${commands[fzf-share]}" ]; then
-  source "$(fzf-share)/key-bindings.zsh"
-  source "$(fzf-share)/completion.zsh"
-fi
-[ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
+# fzf
+eval "$(fzf --zsh)"
+export FZF_DEFAULT_COMMAND="fd --hidden --strip-cwd-prefix --exclude .git"
+export FZF_CTRL_T_COMMAND="$FZF_DEFAULT_COMMAND"
+export FZF_ALT_C_COMMAND="fd --type=d --hidden --strip-cwd-prefix --exclude .git"
+_fzf_compgen_path() {
+  fd --hidden --exclude .git . "$1"
+}
+_fzf_compgen_dir() {
+  fd --type=d --hidden --exclude .git . "$1"
+}
 
 # emacs keys
 bindkey -e
@@ -136,9 +140,9 @@ boy() {
     curl -s "cheat.sh/$1"
 }
 
-SCALE_ZSHRC="$HOME/.dotfiles/zsh/.zshscale"
-if [[ -f $SCALE_ZSHRC ]]; then
-    source $SCALE_ZSHRC
+SECRET_ZSHRC="$HOME/.dotfiles/zsh/.zshsecret"
+if [[ -f $SECRET_ZSHRC ]]; then
+    source $SECRET_ZSHRC
 fi
 
 # To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
@@ -146,21 +150,6 @@ fi
 
 export NVM_DIR="$([ -z "${XDG_CONFIG_HOME-}" ] && printf %s "${HOME}/.nvm" || printf %s "${XDG_CONFIG_HOME}/nvm")"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" # This loads nvm
-
-# >>> conda initialize >>>
-# !! Contents within this block are managed by 'conda init' !!
-__conda_setup="$('/home/drake/dev/.environment/bin/conda' 'shell.zsh' 'hook' 2> /dev/null)"
-if [ $? -eq 0 ]; then
-    eval "$__conda_setup"
-else
-    if [ -f "/home/drake/dev/.environment/etc/profile.d/conda.sh" ]; then
-        . "/home/drake/dev/.environment/etc/profile.d/conda.sh"
-    else
-        export PATH="/home/drake/dev/.environment/bin:$PATH"
-    fi
-fi
-unset __conda_setup
-# <<< conda initialize <<<
 
 fpath+=~/.zfunc
 autoload -Uz compinit && compinit
@@ -183,3 +172,12 @@ esac
 
 # rustup
 source "$HOME/.cargo/env"
+
+# nix
+. /home/drake/.nix-profile/etc/profile.d/nix.sh
+
+# thefuck
+eval $(thefuck --alias)
+
+# zoxide
+eval "$(zoxide init zsh)"
