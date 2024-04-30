@@ -92,6 +92,7 @@ zle -N special-forward-word
 bindkey '^[f' special-forward-word
 
 alias l='ls -lAh'
+alias e="eza --color=always --long --git --icons=always --no-user --no-permissions"
 alias cp='cp -iv'
 alias mv='mv -iv'
 alias rm='rm -i'
