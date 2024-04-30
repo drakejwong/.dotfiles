@@ -1,8 +1,6 @@
 [user]
 	email = 40375132+drakejwong@users.noreply.github.com
 	name = Drake Wong
-[core]
-	pager = "less -MR"
 [alias]
 	a = "add"
   b = "branch"
@@ -48,3 +46,14 @@
 	clean = git-lfs clean -- %f
 [checkout]
   defaultRemote = origin
+[core]
+    pager = delta
+[interactive]
+    diffFilter = delta --color-only
+[merge]
+    conflictstyle = diff3
+[diff]
+    colorMoved = default
+[delta]
+    navigate = true
+    side-by-side = true
