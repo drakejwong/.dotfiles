@@ -28,6 +28,9 @@ znap source zsh-users/zsh-history-substring-search
 # znap function _pyenv pyenv 'eval "$( pyenv init - --no-rehash )"'
 # compctl -K    _pyenv pyenv
 
+# nix
+. /home/drake/.nix-profile/etc/profile.d/nix.sh
+
 # history settings
 setopt extended_history       # record timestamp of command in HISTFILE
 setopt hist_expire_dups_first # delete duplicates first when HISTFILE size exceeds HISTSIZE
@@ -48,15 +51,16 @@ bindkey -M menuselect 'l' vi-forward-char
 
 # fzf
 eval "$(fzf --zsh)"
-export FZF_DEFAULT_COMMAND="fd --hidden --strip-cwd-prefix --exclude .git"
+export FZF_DEFAULT_COMMAND="fd --hidden --exclude .git"
 export FZF_CTRL_T_COMMAND="$FZF_DEFAULT_COMMAND"
-export FZF_ALT_C_COMMAND="fd --type=d --hidden --strip-cwd-prefix --exclude .git"
+export FZF_ALT_C_COMMAND="fd --type=d --hidden --exclude .git"
 _fzf_compgen_path() {
   fd --hidden --exclude .git . "$1"
 }
 _fzf_compgen_dir() {
   fd --type=d --hidden --exclude .git . "$1"
 }
+source "$HOME/.fzf-git.sh"
 
 # emacs keys
 bindkey -e
@@ -172,9 +176,6 @@ esac
 
 # rustup
 source "$HOME/.cargo/env"
-
-# nix
-. /home/drake/.nix-profile/etc/profile.d/nix.sh
 
 # thefuck
 eval $(thefuck --alias)
