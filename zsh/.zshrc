@@ -30,6 +30,8 @@ znap source zsh-users/zsh-history-substring-search
 
 # nix
 . /home/drake/.nix-profile/etc/profile.d/nix.sh
+. /Users/drake/.nix-profile/etc/profile.d/nix.sh
+. /nix/var/nix/profiles/per-user/drake
 
 # history settings
 setopt extended_history       # record timestamp of command in HISTFILE
