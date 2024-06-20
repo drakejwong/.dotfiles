@@ -32,29 +32,19 @@ return {
     "neovim/nvim-lspconfig",
     opts = {
       servers = {
-        ---@type lspconfig.options.tsserver
-        tsserver = {
+        vtsls = {
           root_dir = require('lspconfig.util').root_pattern(".git"),
-          keys = {
-            {
-              "<leader>cR",
-              function()
-                vim.lsp.buf.code_action({
-                  apply = true,
-                  context = {
-                    only = { "source.removeUnused.ts" },
-                    diagnostics = {},
-                  },
-                })
-              end,
-              desc = "Remove Unused Imports",
-            },
-          },
-          ---@diagnostic disable-next-line: missing-fields
           settings = {
-            completions = {
-              completeFunctionCalls = true,
-            },
+            typescript = {
+              inlayHints = {
+                enumMemberValues = { enabled = false },
+                functionLikeReturnTypes = { enabled = false },
+                parameterNames = { enabled = false },
+                parameterTypes = { enabled = false },
+                propertyDeclarationTypes = { enabled = false },
+                variableTypes = { enabled = false },
+              },
+            }
           },
         },
       },
