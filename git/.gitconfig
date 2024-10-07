@@ -39,6 +39,12 @@
 	repo = /home/drake/.config/zsh/zsh-history-substring-search
 	repo = /home/drake/.config/zsh/zsh-syntax-highlighting
 	repo = /home/drake/.config/zsh/zsh-z
+	repo = /Users/drake/.config/zsh/znap/romkatv/powerlevel10k
+	repo = /Users/drake/.config/zsh/znap/zsh-users/zsh-autosuggestions
+	repo = /Users/drake/.config/zsh/znap/zsh-users/zsh-completions
+	repo = /Users/drake/.config/zsh/znap/zsh-users/zsh-history-substring-search
+	repo = /Users/drake/.config/zsh/znap/zsh-users/zsh-syntax-highlighting
+	repo = /Users/drake/.config/zsh/znap/agkozak/zsh-z
 [filter "lfs"]
 	smudge = git-lfs smudge -- %f
 	process = git-lfs filter-process
