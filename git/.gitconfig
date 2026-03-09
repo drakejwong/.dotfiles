@@ -3,22 +3,35 @@
 	name = Drake Wong
 [alias]
 	a = "add"
-  b = "branch"
+	b = "branch"
 	c = "commit"
 	co = "checkout"
 	d = "diff"
 	ds = "diff --staged"
-  f = "sync"
-  l = "pull"
-  lg = "log --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset' --abbrev-commit --color=always"
-  m = "merge"
-  mm = ! "git fetch --all --prune && git merge origin/main"
-  rb = "rebase"
-  s = "status"
-  st = "stash"
-  sync = ! "git fetch --all --prune && git for-each-ref --format '%(refname:short) %(upstream:track)' | awk '$2 == \"[gone]\" {print $1}' | xargs -r git branch -D"
-  new = "checkout -b"
-  push = "push -u origin HEAD"
+	f = "sync"
+	l = "pull"
+	lg = "log --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset' --abbrev-commit --color=always"
+	m = "merge"
+	mm = ! "git fetch --all --prune && git merge origin/main"
+	rb = "rebase"
+	s = "status"
+	st = "stash"
+	sync = ! "git fetch --all --prune && git for-each-ref --format '%(refname:short) %(upstream:track)' | awk '$2 == \"[gone]\" {print $1}' | xargs -r git branch -D"
+	new = "checkout -b"
+	push = "push -u origin HEAD"
+	pick = "cherry-pick"
+	wt = "worktree"
+	wtls = "worktree list"
+	wta = "worktree add"
+	wtrm = "worktree remove"
+	wtpr = "worktree prune"
+	wtlsv = "worktree list --verbose"
+	wtadd = "worktree add"
+	wtaddb = "worktree add -b"
+	wtrmf = "worktree remove --force"
+	wtlock = "worktree lock"
+	wtunlock = "worktree unlock"
+	wtmv = "worktree move"
 [maintenance]
 	repo = /Users/drakewong/.config/zsh/powerlevel10k
 	repo = /Users/drakewong/.config/zsh/znap
@@ -45,21 +58,23 @@
 	repo = /Users/drake/.config/zsh/znap/zsh-users/zsh-history-substring-search
 	repo = /Users/drake/.config/zsh/znap/zsh-users/zsh-syntax-highlighting
 	repo = /Users/drake/.config/zsh/znap/agkozak/zsh-z
+[checkout]
+	defaultRemote = origin
+[core]
+	pager = delta
+[interactive]
+	diffFilter = delta --color-only
+[merge]
+	conflictstyle = diff3
+[diff]
+	colorMoved = default
+[delta]
+	navigate = true
+	side-by-side = true
+[submodule]
+	ignore = dirty
 [filter "lfs"]
+	clean = git-lfs clean -- %f
 	smudge = git-lfs smudge -- %f
 	process = git-lfs filter-process
 	required = true
-	clean = git-lfs clean -- %f
-[checkout]
-  defaultRemote = origin
-[core]
-    pager = delta
-[interactive]
-    diffFilter = delta --color-only
-[merge]
-    conflictstyle = diff3
-[diff]
-    colorMoved = default
-[delta]
-    navigate = true
-    side-by-side = true
