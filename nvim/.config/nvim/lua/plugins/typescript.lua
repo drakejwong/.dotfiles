@@ -12,7 +12,7 @@ return {
     end,
   },
   {
-    "williamboman/mason.nvim",
+    "mason-org/mason.nvim",
     opts = function(_, opts)
       -- add tsx and treesitter
       -- stylua: ignore
