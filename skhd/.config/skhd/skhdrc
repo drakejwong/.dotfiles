@@ -48,15 +48,15 @@ shift + alt - 0 : yabai -m space --balance
 # END TODO
 
 # create desktop, move window and follow focus - uses jq for parsing json (brew install jq)
-shift + cmd - n : yabai -m space --create && \
-                  index="$(yabai -m query --spaces --display | jq 'map(select(."native-fullscreen" == 0))[-1].index')" && \
-                  yabai -m window --space "${index}" && \
-                  yabai -m space --focus "${index}"
+# shift + cmd - n : yabai -m space --create && \
+#                   index="$(yabai -m query --spaces --display | jq 'map(select(."native-fullscreen" == 0))[-1].index')" && \
+#                   yabai -m window --space "${index}" && \
+#                   yabai -m space --focus "${index}"
 
 # create desktop and follow focus - uses jq for parsing json (brew install jq)
-cmd + alt - n : yabai -m space --create && \
-                index="$(yabai -m query --spaces --display | jq 'map(select(."native-fullscreen" == 0))[-1].index')" && \
-                yabai -m space --focus "${index}"
+# cmd + alt - n : yabai -m space --create && \
+#                 index="$(yabai -m query --spaces --display | jq 'map(select(."native-fullscreen" == 0))[-1].index')" && \
+#                 yabai -m space --focus "${index}"
 
 # destroy desktop
 # cmd + alt - w : yabai -m space --destroy
@@ -159,7 +159,7 @@ alt - e : yabai -m window --toggle split
 
 # float / unfloat window and restore position
 # alt - t : yabai -m window --toggle float && /tmp/yabai-restore/$(yabai -m query --windows --window | jq -re '.id').restore 2>/dev/null || true
-alt - t : yabai -m window --toggle float --grid 4:4:1:1:2:2
+# alt - t : yabai -m window --toggle float --grid 4:4:1:1:2:2
 
 # toggle sticky (show on all spaces)
 alt - s : yabai -m window --toggle sticky
