@@ -29,9 +29,11 @@ znap source zsh-users/zsh-history-substring-search
 # compctl -K    _pyenv pyenv
 
 # nix
-. /home/drake/.nix-profile/etc/profile.d/nix.sh
-. /Users/drake/.nix-profile/etc/profile.d/nix.sh
-. /nix/var/nix/profiles/per-user/drake
+# . /home/drake/.nix-profile/etc/profile.d/nix.sh
+# . /Users/drake/.nix-profile/etc/profile.d/nix.sh
+# . /nix/var/nix/profiles/per-user/drake
+# . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
+# sudo launchctl kickstart -k system/org.nixos.nix-daemon
 
 # history settings
 setopt extended_history       # record timestamp of command in HISTFILE
@@ -118,6 +120,14 @@ alias py=ptipython
 alias ta='tmux attach'
 alias apt='apt -y'
 alias p='pnpm'
+alias k='kubectl'
+alias rg='rg -M 1000'
+alias c='cargo'
+alias oc='opencode'
+alias pret='changed=($(git diff --staged --name-only --relative --diff-filter=ACMR 2>/dev/null | grep -E "\.(ts|tsx|json)$")) && \
+  [ ${#changed[@]} -gt 0 ] && \
+  p prettier --write -- "${changed[@]}" && \
+  p turbo run lint typecheck --concurrency=64 --output-logs=errors-only'
 
 bindkey '^[[A' history-substring-search-up
 bindkey '^[[B' history-substring-search-down
@@ -137,7 +147,13 @@ alias gcm='git commit --amend --no-edit'
 alias gco='git checkout'
 alias gd='git diff'
 alias gds='git diff --staged'
-alias gf='git sync' # requires .gitconfig
+gf() {
+  if [ -z "$1" ]; then
+    git sync # requires custom defition in .gitconfig
+  else
+    git fetch origin "${1}:refs/remotes/origin/${1}"
+  fi
+}
 alias gl='git pull'
 alias glg="git log --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset' --abbrev-commit --color=always"
 alias gm='git merge'
@@ -154,6 +170,7 @@ alias grba='git rebase --abort'
 alias gss="git stash save -u"
 alias gsp="git stash pop"
 alias gnew='git checkout -b'
+alias ghp='gh pr create --web'
 
 export LESS='MR'
 
@@ -199,3 +216,14 @@ eval $(thefuck --alias)
 
 # zoxide
 eval "$(zoxide init zsh)"
+
+# The next line updates PATH for the Google Cloud SDK.
+if [ -f '/Users/drake/tmp/google-cloud-sdk/path.zsh.inc' ]; then . '/Users/drake/tmp/google-cloud-sdk/path.zsh.inc'; fi
+
+# The next line enables shell command completion for gcloud.
+if [ -f '/Users/drake/tmp/google-cloud-sdk/completion.zsh.inc' ]; then . '/Users/drake/tmp/google-cloud-sdk/completion.zsh.inc'; fi
+[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
+
+# brew
+export PATH=/opt/homebrew/bin:$PATH
+export PATH="/opt/homebrew/opt/python/libexec/bin:$PATH"
