@@ -1,68 +1,17 @@
-return {
-  "mrjones2014/smart-splits.nvim",
-  lazy = false,
-  opts = {
-    multiplexer_integration = "wezterm",
-    at_edge = "stop", -- don't wrap within nvim, navigate to wezterm pane instead
-    disable_multiplexer_nav_when_zoomed = false, -- allow navigating out of zoomed pane (unzooms automatically)
-  },
-  keys = {
-    {
-      "<C-h>",
-      function()
-        require("smart-splits").move_cursor_left()
-      end,
-      desc = "Move Left (smart splits)",
-    },
-    {
-      "<C-j>",
-      function()
-        require("smart-splits").move_cursor_down()
-      end,
-      desc = "Move Down (smart splits)",
-    },
-    {
-      "<C-k>",
-      function()
-        require("smart-splits").move_cursor_up()
-      end,
-      desc = "Move Up (smart splits)",
-    },
-    {
-      "<C-l>",
-      function()
-        require("smart-splits").move_cursor_right()
-      end,
-      desc = "Move Right (smart splits)",
-    },
+local function navigate(direction)
+  local win = vim.api.nvim_get_current_win()
+  vim.cmd("wincmd " .. direction)
+  if vim.api.nvim_get_current_win() == win and vim.env.ZELLIJ then
+    local dir_map = { h = "left", j = "down", k = "up", l = "right" }
+    vim.fn.system({ "zellij", "action", "move-focus", dir_map[direction] })
+  end
+end
 
-    {
-      "<M-h>",
-      function()
-        require("smart-splits").resize_left()
-      end,
-      desc = "Resize Left (smart splits)",
-    },
-    {
-      "<M-j>",
-      function()
-        require("smart-splits").resize_down()
-      end,
-      desc = "Resize Down (smart splits)",
-    },
-    {
-      "<M-k>",
-      function()
-        require("smart-splits").resize_up()
-      end,
-      desc = "Resize Up (smart splits)",
-    },
-    {
-      "<M-l>",
-      function()
-        require("smart-splits").resize_right()
-      end,
-      desc = "Resize Right (smart splits)",
-    },
-  },
+vim.keymap.set("n", "<C-h>", function() navigate("h") end, { desc = "Navigate left" })
+vim.keymap.set("n", "<C-j>", function() navigate("j") end, { desc = "Navigate down" })
+vim.keymap.set("n", "<C-k>", function() navigate("k") end, { desc = "Navigate up" })
+vim.keymap.set("n", "<C-l>", function() navigate("l") end, { desc = "Navigate right" })
+
+return {
+  { "mrjones2014/smart-splits.nvim", enabled = false },
 }
