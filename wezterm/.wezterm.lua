@@ -16,6 +16,12 @@ config.window_padding = {
 	bottom = 0,
 }
 
+config.inactive_pane_hsb = {
+	hue = 1.0,
+	saturation = 0.8,
+	brightness = 0.5,
+}
+
 local wsl_domains = wezterm.default_wsl_domains()
 for _, domain in ipairs(wsl_domains) do
 	if domain.name == "WSL:Ubuntu" then
@@ -55,12 +61,12 @@ local direction_keys = {
 local function split_nav(resize_or_move, key)
 	return {
 		key = key,
-		mods = resize_or_move == "resize" and "META" or "CTRL",
+		mods = resize_or_move == "resize" and "ALT" or "CTRL",
 		action = wezterm.action_callback(function(win, pane)
 			if is_vim(pane) then
 				-- pass the keys through to vim/nvim
 				win:perform_action({
-					SendKey = { key = key, mods = resize_or_move == "resize" and "META" or "CTRL" },
+					SendKey = { key = key, mods = resize_or_move == "resize" and "ALT" or "CTRL" },
 				}, pane)
 			else
 				if resize_or_move == "resize" then
@@ -83,51 +89,51 @@ config.keys = {
 	split_nav("move", "j"),
 	split_nav("move", "k"),
 	split_nav("move", "l"),
-  {
-    key = "h",
-    mods = "LEADER",
-    action = wezterm.action({ ActivatePaneDirection = "Left" }),
-  },
-  {
-    key = "j",
-    mods = "LEADER",
-    action = wezterm.action({ ActivatePaneDirection = "Down" }),
-  },
-  {
-    key = "k",
-    mods = "LEADER",
-    action = wezterm.action({ ActivatePaneDirection = "Up" }),
-  },
-  {
-    key = "l",
-    mods = "LEADER",
-    action = wezterm.action({ ActivatePaneDirection = "Right" }),
-  },
+	{
+		key = "h",
+		mods = "LEADER",
+		action = wezterm.action({ ActivatePaneDirection = "Left" }),
+	},
+	{
+		key = "j",
+		mods = "LEADER",
+		action = wezterm.action({ ActivatePaneDirection = "Down" }),
+	},
+	{
+		key = "k",
+		mods = "LEADER",
+		action = wezterm.action({ ActivatePaneDirection = "Up" }),
+	},
+	{
+		key = "l",
+		mods = "LEADER",
+		action = wezterm.action({ ActivatePaneDirection = "Right" }),
+	},
 	-- resize
 	split_nav("resize", "h"),
 	split_nav("resize", "j"),
 	split_nav("resize", "k"),
 	split_nav("resize", "l"),
-  {
-    key = "H",
-    mods = "LEADER",
-    action = wezterm.action({ AdjustPaneSize = { "Left", 3 } }),
-  },
-  {
-    key = "J",
-    mods = "LEADER",
-    action = wezterm.action({ AdjustPaneSize = { "Down", 3 } }),
-  },
-  {
-    key = "K",
-    mods = "LEADER",
-    action = wezterm.action({ AdjustPaneSize = { "Up", 3 } }),
-  },
-  {
-    key = "L",
-    mods = "LEADER",
-    action = wezterm.action({ AdjustPaneSize = { "Right", 3 } }),
-  },
+	{
+		key = "H",
+		mods = "LEADER",
+		action = wezterm.action({ AdjustPaneSize = { "Left", 3 } }),
+	},
+	{
+		key = "J",
+		mods = "LEADER",
+		action = wezterm.action({ AdjustPaneSize = { "Down", 3 } }),
+	},
+	{
+		key = "K",
+		mods = "LEADER",
+		action = wezterm.action({ AdjustPaneSize = { "Up", 3 } }),
+	},
+	{
+		key = "L",
+		mods = "LEADER",
+		action = wezterm.action({ AdjustPaneSize = { "Right", 3 } }),
+	},
 	-- swap
 	{
 		key = "{",
@@ -149,36 +155,58 @@ config.keys = {
 	},
 	-- zoom
 	{
+		mods = "LEADER|CTRL",
+		key = "s",
+		action = wezterm.action.TogglePaneZoomState,
+	},
+	{
 		mods = "LEADER",
 		key = "z",
 		action = wezterm.action.TogglePaneZoomState,
 	},
+	--- disable alt+enter
+	{
+		key = "Enter",
+		mods = "ALT",
+		action = wezterm.action.DisableDefaultAssignment,
+	},
 }
 
-local act = wezterm.action;
+local act = wezterm.action
 
 config.mouse_bindings = {
-  -- Change the default click behavior so that it only selects
-  -- text and doesn't open hyperlinks
-  {
-    event={Up={streak=1, button="Left"}},
-    mods="NONE",
-    action=act.CompleteSelection("PrimarySelection"),
-  },
+	-- Single click select: do NOT auto-copy to clipboard
+	{
+		event = { Up = { streak = 1, button = "Left" } },
+		mods = "NONE",
+		action = act.Nop,
+	},
+	-- Double click (word select): do NOT auto-copy to clipboard
+	{
+		event = { Up = { streak = 2, button = "Left" } },
+		mods = "NONE",
+		action = act.Nop,
+	},
+	-- Triple click (line select): do NOT auto-copy to clipboard
+	{
+		event = { Up = { streak = 3, button = "Left" } },
+		mods = "NONE",
+		action = act.Nop,
+	},
 
-  -- and make SHIFT-Click open hyperlinks
-  {
-    event={Up={streak=1, button="Left"}},
-    mods="SHIFT",
-    action=act.OpenLinkAtMouseCursor,
-  },
+	-- SHIFT-Click opens hyperlinks
+	{
+		event = { Up = { streak = 1, button = "Left" } },
+		mods = "SHIFT",
+		action = act.OpenLinkAtMouseCursor,
+	},
 
-  -- Disable the 'Down' event of SHIFT-Click to avoid weird program behaviors
-  {
-    event = { Down = { streak = 1, button = 'Left' } },
-    mods = 'SHIFT',
-    action = act.Nop,
-  }
+	-- Disable the 'Down' event of SHIFT-Click to avoid weird program behaviors
+	{
+		event = { Down = { streak = 1, button = "Left" } },
+		mods = "SHIFT",
+		action = act.Nop,
+	},
 }
 
 return config
