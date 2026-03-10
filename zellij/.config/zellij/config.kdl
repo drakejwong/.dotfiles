@@ -1,12 +1,24 @@
 keybinds {
     shared_except "locked" {
         unbind "Alt h" "Alt j" "Alt k" "Alt l"
+        unbind "Alt Up" "Alt Down"
+        bind "Alt Left" { Write 27 98; }
+        bind "Alt Right" { Write 27 102; }
         bind "Ctrl h" { MoveFocus "Left"; }
         bind "Ctrl j" { MoveFocus "Down"; }
         bind "Ctrl k" { MoveFocus "Up"; }
         bind "Ctrl l" { MoveFocus "Right"; }
-        bind "Ctrl Shift [" { GoToPreviousTab; }
-        bind "Ctrl Shift ]" { GoToNextTab; }
+        bind "Alt {" { GoToPreviousTab; }
+        bind "Alt }" { GoToNextTab; }
+        bind "Alt 1" { GoToTab 1; }
+        bind "Alt 2" { GoToTab 2; }
+        bind "Alt 3" { GoToTab 3; }
+        bind "Alt 4" { GoToTab 4; }
+        bind "Alt 5" { GoToTab 5; }
+        bind "Alt 6" { GoToTab 6; }
+        bind "Alt 7" { GoToTab 7; }
+        bind "Alt 8" { GoToTab 8; }
+        bind "Alt 9" { GoToTab 9; }
     }
 }
 
