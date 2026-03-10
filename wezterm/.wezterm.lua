@@ -41,39 +41,19 @@ config.unix_domains = {
 	},
 }
 
--- nvim smart splits
-local function is_vim(pane)
-	-- this is set by the plugin, and unset on ExitPre in Neovim
-	return pane:get_user_vars().IS_NVIM == "true"
-end
+-- Ctrl+hjkl: pass through to zellij/nvim if running, otherwise navigate wezterm panes
+local direction_keys = { h = "Left", j = "Down", k = "Up", l = "Right" }
 
-local direction_keys = {
-	Left = "h",
-	Down = "j",
-	Up = "k",
-	Right = "l",
-	h = "Left",
-	j = "Down",
-	k = "Up",
-	l = "Right",
-}
-
-local function split_nav(resize_or_move, key)
+local function pane_nav(key)
 	return {
 		key = key,
-		mods = resize_or_move == "resize" and "ALT" or "CTRL",
+		mods = "CTRL",
 		action = wezterm.action_callback(function(win, pane)
-			if is_vim(pane) then
-				-- pass the keys through to vim/nvim
-				win:perform_action({
-					SendKey = { key = key, mods = resize_or_move == "resize" and "ALT" or "CTRL" },
-				}, pane)
+			local name = pane:get_foreground_process_name() or ""
+			if name:find("zellij") or name:find("n?vim") then
+				win:perform_action(wezterm.action.SendKey({ key = key, mods = "CTRL" }), pane)
 			else
-				if resize_or_move == "resize" then
-					win:perform_action({ AdjustPaneSize = { direction_keys[key], 3 } }, pane)
-				else
-					win:perform_action({ ActivatePaneDirection = direction_keys[key] }, pane)
-				end
+				win:perform_action(wezterm.action.ActivatePaneDirection(direction_keys[key]), pane)
 			end
 		end),
 	}
@@ -84,56 +64,21 @@ end
 ------------------
 config.leader = { key = "s", mods = "CTRL", timeout_milliseconds = 1000 }
 config.keys = {
-	-- move
-	split_nav("move", "h"),
-	split_nav("move", "j"),
-	split_nav("move", "k"),
-	split_nav("move", "l"),
-	{
-		key = "h",
-		mods = "LEADER",
-		action = wezterm.action({ ActivatePaneDirection = "Left" }),
-	},
-	{
-		key = "j",
-		mods = "LEADER",
-		action = wezterm.action({ ActivatePaneDirection = "Down" }),
-	},
-	{
-		key = "k",
-		mods = "LEADER",
-		action = wezterm.action({ ActivatePaneDirection = "Up" }),
-	},
-	{
-		key = "l",
-		mods = "LEADER",
-		action = wezterm.action({ ActivatePaneDirection = "Right" }),
-	},
-	-- resize
-	split_nav("resize", "h"),
-	split_nav("resize", "j"),
-	split_nav("resize", "k"),
-	split_nav("resize", "l"),
-	{
-		key = "H",
-		mods = "LEADER",
-		action = wezterm.action({ AdjustPaneSize = { "Left", 3 } }),
-	},
-	{
-		key = "J",
-		mods = "LEADER",
-		action = wezterm.action({ AdjustPaneSize = { "Down", 3 } }),
-	},
-	{
-		key = "K",
-		mods = "LEADER",
-		action = wezterm.action({ AdjustPaneSize = { "Up", 3 } }),
-	},
-	{
-		key = "L",
-		mods = "LEADER",
-		action = wezterm.action({ AdjustPaneSize = { "Right", 3 } }),
-	},
+	-- Ctrl+hjkl: nvim > zellij > wezterm
+	pane_nav("h"),
+	pane_nav("j"),
+	pane_nav("k"),
+	pane_nav("l"),
+	-- LEADER move (explicit wezterm pane nav)
+	{ key = "h", mods = "LEADER", action = wezterm.action({ ActivatePaneDirection = "Left" }) },
+	{ key = "j", mods = "LEADER", action = wezterm.action({ ActivatePaneDirection = "Down" }) },
+	{ key = "k", mods = "LEADER", action = wezterm.action({ ActivatePaneDirection = "Up" }) },
+	{ key = "l", mods = "LEADER", action = wezterm.action({ ActivatePaneDirection = "Right" }) },
+	-- LEADER resize
+	{ key = "H", mods = "LEADER", action = wezterm.action({ AdjustPaneSize = { "Left", 3 } }) },
+	{ key = "J", mods = "LEADER", action = wezterm.action({ AdjustPaneSize = { "Down", 3 } }) },
+	{ key = "K", mods = "LEADER", action = wezterm.action({ AdjustPaneSize = { "Up", 3 } }) },
+	{ key = "L", mods = "LEADER", action = wezterm.action({ AdjustPaneSize = { "Right", 3 } }) },
 	-- swap
 	{
 		key = "{",
