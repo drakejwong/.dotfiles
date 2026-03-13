@@ -41,34 +41,73 @@ config.unix_domains = {
 	},
 }
 
--- Ctrl+hjkl: pass through to zellij/nvim if running, otherwise navigate wezterm panes
-local direction_keys = { h = "Left", j = "Down", k = "Up", l = "Right" }
+-- Helper: is the foreground process zellij (or nvim inside it)?
+local function is_zellij(pane)
+	local name = pane:get_foreground_process_name() or ""
+	return name:find("zellij") ~= nil
+end
 
-local function pane_nav(key)
+local function is_zellij_or_vim(pane)
+	local name = pane:get_foreground_process_name() or ""
+	return name:find("zellij") ~= nil or name:find("n?vim") ~= nil
+end
+
+-- Ctrl+hjkl: pass directly to terminal (for Zellij/nvim)
+-- No process check = no lag
+
+-- Shift or Cmd bypasses Zellij mouse capture (for links, WezTerm selection)
+config.bypass_mouse_reporting_modifiers = "SHIFT|SUPER"
+
+-- Cmd+N: focus tab N in zellij, fallback to wezterm tab
+local function tab_key(n)
 	return {
-		key = key,
-		mods = "CTRL",
+		key = tostring(n),
+		mods = "SUPER",
 		action = wezterm.action_callback(function(win, pane)
-			local name = pane:get_foreground_process_name() or ""
-			if name:find("zellij") or name:find("n?vim") then
-				win:perform_action(wezterm.action.SendKey({ key = key, mods = "CTRL" }), pane)
+			if is_zellij(pane) then
+				win:perform_action(wezterm.action.SendKey({ key = tostring(n), mods = "ALT" }), pane)
 			else
-				win:perform_action(wezterm.action.ActivatePaneDirection(direction_keys[key]), pane)
+				win:perform_action(wezterm.action.ActivateTab(n - 1), pane)
 			end
 		end),
 	}
 end
 
+-- Cmd+Shift+[/]: prev/next tab in zellij, fallback to wezterm
+-- Send raw ESC { / ESC } bytes (universal Alt encoding Zellij understands)
+local function make_tab_cycle_action(escaped, direction)
+	return wezterm.action_callback(function(win, pane)
+		if is_zellij(pane) then
+			win:perform_action(wezterm.action.SendString(escaped), pane)
+		else
+			win:perform_action(wezterm.action.ActivateTabRelative(direction), pane)
+		end
+	end)
+end
+
 ------------------
 ------ KEYS ------
 ------------------
-config.leader = { key = "s", mods = "CTRL", timeout_milliseconds = 1000 }
+config.leader = { key = "\\", mods = "CTRL", timeout_milliseconds = 1000 }
 config.keys = {
-	-- Ctrl+hjkl: nvim > zellij > wezterm
-	pane_nav("h"),
-	pane_nav("j"),
-	pane_nav("k"),
-	pane_nav("l"),
+	-- Cmd+N: zellij tab N, fallback wezterm tab
+	tab_key(1),
+	tab_key(2),
+	tab_key(3),
+	tab_key(4),
+	tab_key(5),
+	tab_key(6),
+	tab_key(7),
+	tab_key(8),
+	tab_key(9),
+	-- Cmd+Shift+[/]: prev/next tab (zellij > wezterm)
+	-- cover every way macOS/wezterm can represent this keypress
+	{ key = "[", mods = "SHIFT|SUPER", action = make_tab_cycle_action("\x1b{", -1) },
+	{ key = "{", mods = "SHIFT|SUPER", action = make_tab_cycle_action("\x1b{", -1) },
+	{ key = "{", mods = "SUPER", action = make_tab_cycle_action("\x1b{", -1) },
+	{ key = "]", mods = "SHIFT|SUPER", action = make_tab_cycle_action("\x1b}", 1) },
+	{ key = "}", mods = "SHIFT|SUPER", action = make_tab_cycle_action("\x1b}", 1) },
+	{ key = "}", mods = "SUPER", action = make_tab_cycle_action("\x1b}", 1) },
 	-- LEADER move (explicit wezterm pane nav)
 	{ key = "h", mods = "LEADER", action = wezterm.action({ ActivatePaneDirection = "Left" }) },
 	{ key = "j", mods = "LEADER", action = wezterm.action({ ActivatePaneDirection = "Down" }) },
@@ -119,37 +158,16 @@ config.keys = {
 
 local act = wezterm.action
 
+-- Cmd+Click for links
 config.mouse_bindings = {
-	-- Single click select: do NOT auto-copy to clipboard
 	{
 		event = { Up = { streak = 1, button = "Left" } },
-		mods = "NONE",
-		action = act.Nop,
-	},
-	-- Double click (word select): do NOT auto-copy to clipboard
-	{
-		event = { Up = { streak = 2, button = "Left" } },
-		mods = "NONE",
-		action = act.Nop,
-	},
-	-- Triple click (line select): do NOT auto-copy to clipboard
-	{
-		event = { Up = { streak = 3, button = "Left" } },
-		mods = "NONE",
-		action = act.Nop,
-	},
-
-	-- SHIFT-Click opens hyperlinks
-	{
-		event = { Up = { streak = 1, button = "Left" } },
-		mods = "SHIFT",
+		mods = "SUPER",
 		action = act.OpenLinkAtMouseCursor,
 	},
-
-	-- Disable the 'Down' event of SHIFT-Click to avoid weird program behaviors
 	{
 		event = { Down = { streak = 1, button = "Left" } },
-		mods = "SHIFT",
+		mods = "SUPER",
 		action = act.Nop,
 	},
 }
