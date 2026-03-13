@@ -1,15 +1,80 @@
 keybinds {
+    // Free up emacs keys
     shared_except "locked" {
-        unbind "Alt h" "Alt j" "Alt k" "Alt l"
+        unbind "Ctrl p" "Ctrl n" "Ctrl b" "Ctrl f" "Ctrl a" "Ctrl q"
+        unbind "Ctrl w" "Ctrl e" "Ctrl r" "Ctrl u" "Ctrl d" "Ctrl x" "Ctrl c" "Ctrl y"
+        unbind "Ctrl g"
+        unbind "Alt h" "Alt j" "Alt k" "Alt l" "Alt Up" "Alt Down"
+        
+        // Direct pane navigation (not modes)
         bind "Ctrl h" { MoveFocus "Left"; }
         bind "Ctrl j" { MoveFocus "Down"; }
         bind "Ctrl k" { MoveFocus "Up"; }
         bind "Ctrl l" { MoveFocus "Right"; }
-        bind "Ctrl Shift [" { GoToPreviousTab; }
-        bind "Ctrl Shift ]" { GoToNextTab; }
+        
+        // Alt for tabs
+        bind "Alt Left" { Write 27 98; }
+        bind "Alt Right" { Write 27 102; }
+        bind "Alt {" { GoToPreviousTab; }
+        bind "Alt }" { GoToNextTab; }
+        bind "Alt 1" { GoToTab 1; }
+        bind "Alt 2" { GoToTab 2; }
+        bind "Alt 3" { GoToTab 3; }
+        bind "Alt 4" { GoToTab 4; }
+        bind "Alt 5" { GoToTab 5; }
+        bind "Alt 6" { GoToTab 6; }
+        bind "Alt 7" { GoToTab 7; }
+        bind "Alt 8" { GoToTab 8; }
+        bind "Alt 9" { GoToTab 9; }
+    }
+    
+    // Mode triggers
+    shared_except "locked" "pane" {
+        bind "Ctrl s" { SwitchToMode "Pane"; }
+    }
+    shared_except "locked" "tab" {
+        bind "Ctrl t" { SwitchToMode "Tab"; }
+    }
+    shared_except "locked" "scroll" "search" {
+        bind "Ctrl g" { SwitchToMode "Scroll"; }
+    }
+    // Resize mode: enter via Ctrl+S (pane mode) then 'r'
+    shared_except "locked" "session" {
+        bind "Ctrl o" { SwitchToMode "Session"; }
+    }
+    shared_except "locked" {
+        bind "Ctrl z" { SwitchToMode "Locked"; }
+    }
+    locked {
+        bind "Ctrl z" { SwitchToMode "Normal"; }
+    }
+    
+    // Exit modes with same key
+    pane {
+        bind "Ctrl s" { ToggleFocusFullscreen; SwitchToMode "Normal"; }
+        bind "|" { NewPane "right"; SwitchToMode "Normal"; }
+        bind "-" { NewPane "down"; SwitchToMode "Normal"; }
+        bind "H" { Resize "Increase left"; }
+        bind "J" { Resize "Increase down"; }
+        bind "K" { Resize "Increase up"; }
+        bind "L" { Resize "Increase right"; }
+    }
+    tab {
+        bind "Ctrl t" { SwitchToMode "Normal"; }
+    }
+    scroll {
+        bind "Ctrl g" { SwitchToMode "Normal"; }
+    }
+
+    session {
+        bind "Ctrl o" { SwitchToMode "Normal"; }
     }
 }
 
 copy_on_select false
+copy_clipboard "system"
+copy_command "pbcopy"
+mouse_mode true
+clickable_links false
 show_startup_tips false
 theme "tokyo-night"
