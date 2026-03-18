@@ -54,6 +54,7 @@ keybinds {
         bind "Ctrl s" { ToggleFocusFullscreen; SwitchToMode "Normal"; }
         bind "|" { NewPane "right"; SwitchToMode "Normal"; }
         bind "-" { NewPane "down"; SwitchToMode "Normal"; }
+        bind "x" { CloseFocus; SwitchToMode "Normal"; }
         bind "H" { Resize "Increase left"; }
         bind "J" { Resize "Increase down"; }
         bind "K" { Resize "Increase up"; }
@@ -71,7 +72,7 @@ keybinds {
     }
 }
 
-copy_on_select false
+copy_on_select true
 copy_clipboard "system"
 copy_command "pbcopy"
 mouse_mode true
