@@ -60,6 +60,7 @@
 	repo = /Users/drake/.config/zsh/znap/agkozak/zsh-z
 [checkout]
 	defaultRemote = origin
+	workers = 8
 [core]
 	pager = delta
 [interactive]
