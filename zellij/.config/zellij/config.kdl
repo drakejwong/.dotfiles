@@ -61,7 +61,14 @@ keybinds {
         bind "L" { Resize "Increase right"; }
     }
     tab {
-        bind "Ctrl t" { SwitchToMode "Normal"; }
+        bind "Ctrl t" {
+            Run "bash" "-c" "$HOME/.dotfiles/bin/zt-new-tab" {
+                floating true
+                close_on_exit true
+            }
+            SwitchToMode "Normal";
+        }
+
     }
     scroll {
         bind "Ctrl g" { SwitchToMode "Normal"; }

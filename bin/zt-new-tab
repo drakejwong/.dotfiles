@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+printf "Tab name (Enter to skip): "
+read -r name
+dir=$(zoxide query -l 2>/dev/null | fzf --prompt="Dir (Esc for cwd): " || true)
+[[ -z "$dir" ]] && dir="$(pwd)"
+[[ -z "$name" ]] && name=$(basename "$dir")
+zellij action new-tab --layout task --cwd "$dir" --name "$name"
