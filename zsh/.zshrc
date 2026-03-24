@@ -124,6 +124,7 @@ alias k='kubectl'
 alias rg='rg -M 1000'
 alias c='cargo'
 alias oc='opencode'
+alias gg='lazygit'
 
 alias pret='changed=($(git diff --staged --name-only --relative --diff-filter=ACMR 2>/dev/null | grep -E "\.(ts|tsx|json)$")) && \
   [ ${#changed[@]} -gt 0 ] && \
