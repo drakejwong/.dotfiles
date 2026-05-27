@@ -126,11 +126,6 @@ alias c='cargo'
 alias oc='opencode'
 alias gg='lazygit'
 
-alias pret='changed=($(git diff --staged --name-only --relative --diff-filter=ACMR 2>/dev/null | grep -E "\.(ts|tsx|json)$")) && \
-  [ ${#changed[@]} -gt 0 ] && \
-  p prettier --write -- "${changed[@]}" && \
-  p turbo run lint typecheck --concurrency=64 --output-logs=errors-only'
-
 bindkey '^[[A' history-substring-search-up
 bindkey '^[[B' history-substring-search-down
 bindkey -M emacs '^P' history-substring-search-up
