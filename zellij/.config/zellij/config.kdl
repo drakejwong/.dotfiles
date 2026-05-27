@@ -39,10 +39,10 @@ keybinds {
         bind "Ctrl g" { SwitchToMode "Scroll"; }
     }
     shared_except "locked" {
-        bind "Ctrl z" { SwitchToMode "Locked"; }
+        bind "Ctrl i" { SwitchToMode "Locked"; }
     }
     locked {
-        bind "Ctrl z" { SwitchToMode "Normal"; }
+        bind "Ctrl i" { SwitchToMode "Normal"; }
     }
     
     // Exit modes with same key
