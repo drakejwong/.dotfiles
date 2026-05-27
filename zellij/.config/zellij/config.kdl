@@ -1,7 +1,7 @@
 keybinds {
     // Free up emacs keys
     shared_except "locked" {
-        unbind "Ctrl p" "Ctrl n" "Ctrl b" "Ctrl f" "Ctrl a" "Ctrl q"
+        unbind "Ctrl p" "Ctrl n" "Ctrl b" "Ctrl f" "Ctrl a" "Ctrl q" "Ctrl o"
         unbind "Ctrl w" "Ctrl e" "Ctrl r" "Ctrl u" "Ctrl d" "Ctrl x" "Ctrl c" "Ctrl y"
         unbind "Ctrl g"
         unbind "Alt h" "Alt j" "Alt k" "Alt l" "Alt Up" "Alt Down"
@@ -38,10 +38,6 @@ keybinds {
     shared_except "locked" "scroll" "search" {
         bind "Ctrl g" { SwitchToMode "Scroll"; }
     }
-    // Resize mode: enter via Ctrl+S (pane mode) then 'r'
-    shared_except "locked" "session" {
-        bind "Ctrl o" { SwitchToMode "Session"; }
-    }
     shared_except "locked" {
         bind "Ctrl z" { SwitchToMode "Locked"; }
     }
@@ -72,10 +68,6 @@ keybinds {
     }
     scroll {
         bind "Ctrl g" { SwitchToMode "Normal"; }
-    }
-
-    session {
-        bind "Ctrl o" { SwitchToMode "Normal"; }
     }
 }
 
