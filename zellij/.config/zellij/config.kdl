@@ -25,7 +25,11 @@ keybinds {
         bind "Alt 6" { GoToTab 6; }
         bind "Alt 7" { GoToTab 7; }
         bind "Alt 8" { GoToTab 8; }
-        bind "Alt 9" { GoToTab 9; }
+        bind "Alt 9" {
+            GoToTab 1; GoToTab 2; GoToTab 3; GoToTab 4; GoToTab 5; GoToTab 6; GoToTab 7; GoToTab 8; GoToTab 9; GoToTab 10;
+            GoToTab 11; GoToTab 12; GoToTab 13; GoToTab 14; GoToTab 15; GoToTab 16; GoToTab 17; GoToTab 18; GoToTab 19; GoToTab 20;
+            GoToTab 21; GoToTab 22; GoToTab 23; GoToTab 24; GoToTab 25; GoToTab 26; GoToTab 27; GoToTab 28; GoToTab 29; GoToTab 30;
+        }
     }
     
     // Mode triggers
