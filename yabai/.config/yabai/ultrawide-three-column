@@ -1,0 +1,48 @@
+#!/usr/bin/env zsh
+set -euo pipefail
+
+windows_json="$(yabai -m query --windows --space)"
+display_width="$(yabai -m query --displays --display | jq -r '.frame.w')"
+
+if (( ${display_width%.*} < 4500 )); then
+  printf 'ultrawide-three-column: display is not ultrawide-sized: %s px\n' "$display_width" >&2
+  exit 1
+fi
+
+windows=("${(@f)$(
+  jq -r '
+    map(select(."is-visible" == true and ."is-minimized" == false and ."has-fullscreen-zoom" == false))
+    | sort_by(.frame.x)
+    | .[]
+    | "\(.id) \(."is-floating") \(."split-child")"
+  ' <<<"$windows_json"
+)}")
+
+if [[ "${#windows[@]}" -ne 3 ]]; then
+  printf 'ultrawide-three-column: expected 3 visible windows, found %s\n' "${#windows[@]}" >&2
+  exit 1
+fi
+
+for window in "${windows[@]}"; do
+  read -r _ is_floating _ <<<"$window"
+  if [[ "$is_floating" == "true" ]]; then
+    printf 'ultrawide-three-column: visible windows must already be managed/tiled\n' >&2
+    exit 1
+  fi
+done
+
+read -r left_id _ left_child <<<"${windows[1]}"
+read -r _ _ _ <<<"${windows[2]}"
+read -r right_id _ right_child <<<"${windows[3]}"
+
+# Shape the BSP tree, but keep it managed so normal yabai resize/swap/warp keeps
+# working. After yabai resets three vertical windows, the tree is normally
+# (25% + 25%) + 50%. Make the root 75% + 25%, then make the left subtree
+# 1/3 + 2/3, giving 25% / 50% / 25% overall.
+if [[ "$right_child" != "none" ]]; then
+  yabai -m window "$right_id" --ratio abs:0.75
+fi
+
+if [[ "$left_child" != "none" ]]; then
+  yabai -m window "$left_id" --ratio abs:0.3333333
+fi

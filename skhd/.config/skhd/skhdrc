@@ -35,6 +35,9 @@ shift + alt - l : yabai -m window --swap east ; if [[ $? -eq 1 ]]; then yabai -m
 # balance size of windows
 shift + alt - 0 : yabai -m space --balance
 
+# three columns for ultrawide displays: 25%, 50%, 25%
+shift + alt - 9 : /Users/drake/.config/yabai/ultrawide-three-column
+
 # TODO: find better keybinds for these. i'd rather use them for text highlighting.
 
 # make floating window fill screen
@@ -171,7 +174,7 @@ alt - o : yabai -m window --toggle topmost
 alt - p : yabai -m window --toggle border --toggle pip
 
 # change layout of desktop
-ctrl + alt - b : yabai -m space --layout bsp
+ctrl + alt - b : yabai -m space --layout bsp && sleep 0.2 && /Users/drake/.config/yabai/ultrawide-three-column >/dev/null 2>&1 || true
 ctrl + alt - f : yabai -m space --layout float
 ctrl + alt - s : yabai -m space --layout stack
 ctrl + alt - r : yabai -m space --layout $(yabai -m query --spaces --space | jq -r 'if .type == "bsp" then "float" else "bsp" end')
