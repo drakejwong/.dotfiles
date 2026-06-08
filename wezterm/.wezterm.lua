@@ -58,6 +58,12 @@ end
 -- Shift or Cmd bypasses Zellij mouse capture (for links, WezTerm selection)
 config.bypass_mouse_reporting_modifiers = "SHIFT|SUPER"
 
+-- When WezTerm itself is unfocused, don't eat the click that focuses it.
+-- Passing that first click through lets Zellij's mouse_mode focus the pane
+-- that was actually clicked instead of leaving focus on Zellij's previous pane.
+config.swallow_mouse_click_on_window_focus = false
+config.swallow_mouse_click_on_pane_focus = false
+
 -- Cmd+N: focus tab N in zellij, fallback to wezterm tab
 local function tab_key(n)
 	return {
