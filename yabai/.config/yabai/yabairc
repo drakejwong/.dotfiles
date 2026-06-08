@@ -1,1 +1,13 @@
 yabai -m config layout bsp
+
+# Keep 49" ultrawide spaces in a 25% / 50% / 25% three-column default.
+# The helper exits without changes unless the focused display is >= 4500px wide,
+# the current space has exactly three visible windows, and no visible window is
+# already floating. It runs only when windows are created/destroyed so manual
+# resizing stays yours after the default is applied.
+yabai -m signal --remove ultrawide-three-column-created 2>/dev/null || true
+yabai -m signal --remove ultrawide-three-column-destroyed 2>/dev/null || true
+yabai -m signal --remove ultrawide-three-column-moved 2>/dev/null || true
+yabai -m signal --remove ultrawide-three-column-space 2>/dev/null || true
+yabai -m signal --add label=ultrawide-three-column-created event=window_created action="sleep 0.3; /Users/drake/.config/yabai/ultrawide-three-column >/dev/null 2>&1 || true"
+yabai -m signal --add label=ultrawide-three-column-destroyed event=window_destroyed action="sleep 0.3; /Users/drake/.config/yabai/ultrawide-three-column >/dev/null 2>&1 || true"
