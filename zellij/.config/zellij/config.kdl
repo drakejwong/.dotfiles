@@ -68,6 +68,8 @@ keybinds {
             }
             SwitchToMode "Normal";
         }
+        bind "H" { MoveTab "Left"; SwitchToMode "Normal"; }
+        bind "L" { MoveTab "Right"; SwitchToMode "Normal"; }
 
     }
     scroll {
