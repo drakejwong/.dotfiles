@@ -1,0 +1,8 @@
+# herdr configuration
+# https://herdr.dev
+
+[keys]
+# Prefix key to enter prefix mode (default: "ctrl+b")
+prefix = "ctrl+s"
+# Default is prefix+v; use | like tmux's vertical split.
+split_vertical = "prefix+|"
