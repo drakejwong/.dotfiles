@@ -6,3 +6,8 @@
 prefix = "ctrl+s"
 # Default is prefix+v; use | like tmux's vertical split.
 split_vertical = "prefix+|"
+# Direct pane navigation, no prefix required.
+focus_pane_left = "ctrl+h"
+focus_pane_down = "ctrl+j"
+focus_pane_up = "ctrl+k"
+focus_pane_right = "ctrl+l"
