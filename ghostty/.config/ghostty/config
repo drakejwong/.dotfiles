@@ -1,0 +1,4 @@
+# Let terminal applications receive Cmd+Shift+[/] instead of cycling Ghostty tabs.
+# Herdr binds these chords to previous_agent and next_agent.
+keybind = super+shift+[=unbind
+keybind = super+shift+]=unbind

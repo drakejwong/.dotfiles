@@ -49,6 +49,11 @@ local function is_zellij(pane)
 	return name:find("zellij") ~= nil
 end
 
+local function is_herdr(pane)
+	local name = pane:get_foreground_process_name() or ""
+	return name:find("herdr") ~= nil
+end
+
 local function is_zellij_or_vim(pane)
 	local name = pane:get_foreground_process_name() or ""
 	return name:find("zellij") ~= nil or name:find("n?vim") ~= nil
@@ -81,11 +86,15 @@ local function tab_key(n)
 	}
 end
 
--- Cmd+Shift+[/]: prev/next tab in zellij, fallback to wezterm
--- Send raw ESC { / ESC } bytes (universal Alt encoding Zellij understands)
+-- Cmd+Shift+[/]: prev/next agent in Herdr, tab in Zellij, fallback to WezTerm tab.
+-- Send raw ESC { / ESC } bytes for Zellij; forward the original modified bracket
+-- through WezTerm's kitty keyboard protocol for Herdr.
 local function make_tab_cycle_action(escaped, direction)
 	return wezterm.action_callback(function(win, pane)
-		if is_zellij(pane) then
+		if is_herdr(pane) then
+			local key = direction < 0 and "[" or "]"
+			win:perform_action(wezterm.action.SendKey({ key = key, mods = "SHIFT|SUPER" }), pane)
+		elseif is_zellij(pane) then
 			win:perform_action(wezterm.action.SendString(escaped), pane)
 		else
 			win:perform_action(wezterm.action.ActivateTabRelative(direction), pane)
@@ -108,8 +117,8 @@ config.keys = {
 	tab_key(7),
 	tab_key(8),
 	tab_key(9),
-	-- Cmd+Shift+[/]: prev/next tab (zellij > wezterm)
-	-- cover every way macOS/wezterm can represent this keypress
+	-- Cmd+Shift+[/]: Herdr agent, Zellij tab, then WezTerm tab.
+	-- Cover every way macOS/WezTerm can represent this keypress.
 	{ key = "[", mods = "SHIFT|SUPER", action = make_tab_cycle_action("\x1b{", -1) },
 	{ key = "{", mods = "SHIFT|SUPER", action = make_tab_cycle_action("\x1b{", -1) },
 	{ key = "{", mods = "SUPER", action = make_tab_cycle_action("\x1b{", -1) },

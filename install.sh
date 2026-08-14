@@ -26,6 +26,7 @@ nix-env -iA \
 
 # stow dotfiles
 stow git
+stow ghostty
 stow nvim
 stow tmux
 stow zsh
