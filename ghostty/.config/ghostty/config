@@ -2,3 +2,7 @@
 # Herdr binds these chords to previous_agent and next_agent.
 keybind = super+shift+[=unbind
 keybind = super+shift+]=unbind
+
+# Rewrite Ctrl+S twice as Ctrl+S then s, which Herdr binds to pane zoom.
+# Unmatched Ctrl+S sequences still pass both keys through to Herdr.
+keybind = ctrl+s>ctrl+s=text:\x13s
