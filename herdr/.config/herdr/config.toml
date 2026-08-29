@@ -17,3 +17,7 @@ focus_pane_right = "ctrl+l"
 # Cycle through agents in the order shown in the Agent panel.
 previous_agent = "cmd+shift+["
 next_agent = "cmd+shift+]"
+
+[theme]
+name = "tokyo-night"
+auto_switch = false
