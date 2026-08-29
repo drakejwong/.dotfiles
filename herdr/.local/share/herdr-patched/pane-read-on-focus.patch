@@ -1,8 +1,35 @@
 diff --git a/src/app/actions.rs b/src/app/actions.rs
-index 51f7187..ca9d964 100644
+index 51f7187..6239b2f 100644
 --- a/src/app/actions.rs
 +++ b/src/app/actions.rs
-@@ -324,25 +324,27 @@ impl AppState {
+@@ -303,6 +303,26 @@ impl AppState {
+         }
+     }
+ 
++    pub(crate) fn mark_focused_pane_seen_after_transition(
++        &mut self,
++        previous: Option<PaneFocusTarget>,
++    ) -> bool {
++        let current = self.current_pane_focus_target();
++        let previous_focus_is_live = self
++            .previous_pane_focus
++            .as_ref()
++            .is_some_and(|target| self.pane_focus_target_indices(target).is_some());
++        if !previous_focus_is_live {
++            self.previous_pane_focus = None;
++        }
++        if previous == current {
++            return false;
++        }
++        self.previous_pane_focus =
++            previous.filter(|target| self.pane_focus_target_indices(target).is_some());
++        self.mark_focused_pane_seen()
++    }
++
+     fn sync_selection_after_focus_navigation(&mut self) {
+         if self.copy_mode.is_some() {
+             self.sync_copy_mode_with_focus();
+@@ -324,25 +344,27 @@ impl AppState {
              pane_id,
          };
          if previous.as_ref() == Some(&target) {
@@ -40,7 +67,7 @@ index 51f7187..ca9d964 100644
      }
  
      #[cfg(test)]
-@@ -1132,6 +1134,19 @@ impl AppState {
+@@ -1132,6 +1154,19 @@ impl AppState {
      }
  
      pub(crate) fn switch_workspace_tab(&mut self, ws_idx: usize, tab_idx: usize) -> bool {
@@ -60,7 +87,7 @@ index 51f7187..ca9d964 100644
          if ws_idx >= self.workspaces.len() {
              return false;
          }
-@@ -1154,7 +1169,11 @@ impl AppState {
+@@ -1154,7 +1189,11 @@ impl AppState {
          self.mark_session_dirty();
          self.ensure_workspace_visible(ws_idx);
          if let Some(ws) = self.workspaces.get_mut(ws_idx) {
@@ -73,7 +100,7 @@ index 51f7187..ca9d964 100644
              let tab_id =
                  public_tab_id_for_index(ws, tab_idx).unwrap_or_else(|| workspace_id.clone());
              crate::logging::tab_focused(&workspace_id, &tab_id);
-@@ -1264,26 +1283,13 @@ impl AppState {
+@@ -1264,26 +1303,13 @@ impl AppState {
          }
      }
  
@@ -103,7 +130,141 @@ index 51f7187..ca9d964 100644
      }
  
      pub(crate) fn visible_workspace_order(&self) -> Vec<usize> {
-@@ -4478,14 +4484,49 @@ mod tests {
+@@ -1514,6 +1540,7 @@ impl AppState {
+ 
+         if self.active == Some(ws_idx) && self.workspaces[ws_idx].focused_pane_id() == Some(pane_id)
+         {
++            self.mark_focused_pane_seen();
+             self.ensure_agent_panel_entry_visible(idx);
+             return true;
+         }
+@@ -1666,6 +1693,7 @@ impl AppState {
+         if self.workspaces.is_empty() {
+             return;
+         }
++        let previous_focus = self.current_pane_focus_target();
+         self.selection = None;
+         self.selection_autoscroll = None;
+         self.mark_session_dirty();
+@@ -1730,6 +1758,7 @@ impl AppState {
+             self.tab_scroll_follow_active = true;
+             self.refresh_tab_bar_view();
+         }
++        self.mark_focused_pane_seen_after_transition(previous_focus);
+     }
+ 
+     pub(crate) fn refresh_tab_bar_view(&mut self) {
+@@ -1885,26 +1914,16 @@ impl AppState {
+         let Some(target) = self.previous_pane_focus.clone() else {
+             return;
+         };
+-        let Some((ws_idx, tab_idx)) = self.pane_focus_target_indices(&target) else {
++        let Some((ws_idx, _)) = self.pane_focus_target_indices(&target) else {
+             self.previous_pane_focus = None;
+             return;
+         };
+-        let current = self.current_pane_focus_target();
+-        if current.as_ref() == Some(&target) {
++        if self.current_pane_focus_target().as_ref() == Some(&target) {
+             self.previous_pane_focus = None;
+             return;
+         }
+ 
+-        self.switch_workspace_tab(ws_idx, tab_idx);
+-        if let Some(tab) = self
+-            .workspaces
+-            .get_mut(ws_idx)
+-            .and_then(|ws| ws.tabs.get_mut(tab_idx))
+-        {
+-            tab.layout.focus_pane(target.pane_id);
+-            self.previous_pane_focus = current;
+-            self.mark_session_dirty();
+-        }
++        self.focus_pane_in_workspace(ws_idx, target.pane_id);
+     }
+ 
+     pub(crate) fn apply_pane_zoom(
+@@ -2037,6 +2056,7 @@ impl AppState {
+             }
+         }
+ 
++        let previous_focus = self.current_pane_focus_target();
+         self.selection = None;
+         self.selection_autoscroll = None;
+         self.mark_session_dirty();
+@@ -2064,6 +2084,7 @@ impl AppState {
+             self.close_selected_workspace();
+         } else {
+             self.remove_unattached_terminal_ids(terminal_ids);
++            self.mark_focused_pane_seen_after_transition(previous_focus);
+         }
+         false
+     }
+@@ -2084,6 +2105,7 @@ impl AppState {
+             }
+         }
+ 
++        let previous_focus = self.current_pane_focus_target();
+         self.selection = None;
+         self.selection_autoscroll = None;
+         self.mark_session_dirty();
+@@ -2121,6 +2143,7 @@ impl AppState {
+             crate::logging::tab_closed(&workspace_id, &closing_tab_id);
+             self.tab_scroll_follow_active = true;
+             self.refresh_tab_bar_view();
++            self.mark_focused_pane_seen_after_transition(previous_focus);
+         }
+         false
+     }
+@@ -4250,10 +4273,16 @@ mod tests {
+         let mut state = app_with_workspaces(&["one"]);
+         let root = state.workspaces[0].tabs[0].root_pane;
+         mark_agent(&mut state, 0, 0, root);
++        state.workspaces[0].tabs[0]
++            .panes
++            .get_mut(&root)
++            .unwrap()
++            .seen = false;
+ 
+         assert!(state.focus_agent_entry(0));
+         assert_eq!(state.active, Some(0));
+         assert_eq!(state.workspaces[0].focused_pane_id(), Some(root));
++        assert!(state.workspaces[0].pane_state(root).unwrap().seen);
+         state.assert_invariants_for_test();
+     }
+ 
+@@ -4382,16 +4411,30 @@ mod tests {
+     fn last_pane_jumps_across_workspaces_and_tabs() {
+         let mut state = app_with_workspaces(&["one", "two"]);
+         let first_root = state.workspaces[0].tabs[0].root_pane;
++        let first_sibling = state.workspaces[0].test_split(Direction::Horizontal);
+         let second_tab = state.workspaces[1].test_add_tab(Some("logs"));
+         let second_tab_root = state.workspaces[1].tabs[second_tab].root_pane;
+ 
+         state.focus_pane_in_workspace(0, first_root);
+         state.focus_pane_in_workspace(1, second_tab_root);
++        state.workspaces[0].tabs[0].layout.focus_pane(first_sibling);
++        state.workspaces[0].tabs[0]
++            .panes
++            .get_mut(&first_root)
++            .unwrap()
++            .seen = false;
++        state.workspaces[0].tabs[0]
++            .panes
++            .get_mut(&first_sibling)
++            .unwrap()
++            .seen = false;
+         state.last_pane();
+ 
+         assert_eq!(state.active, Some(0));
+         assert_eq!(state.workspaces[0].active_tab, 0);
+         assert_eq!(state.workspaces[0].focused_pane_id(), Some(first_root));
++        assert!(state.workspaces[0].pane_state(first_root).unwrap().seen);
++        assert!(!state.workspaces[0].pane_state(first_sibling).unwrap().seen);
+ 
+         state.last_pane();
+ 
+@@ -4478,14 +4521,112 @@ mod tests {
      }
  
      #[test]
@@ -155,6 +316,69 @@ index 51f7187..ca9d964 100644
 +
 +        assert!(!state.workspaces[1].pane_state(root).unwrap().seen);
 +        assert!(state.workspaces[1].pane_state(split).unwrap().seen);
++    }
++
++    #[test]
++    fn closing_active_workspace_marks_only_fallback_pane_seen() {
++        let mut state = app_with_workspaces(&["a", "b"]);
++        let fallback = state.workspaces[1].tabs[0].root_pane;
++        let sibling = state.workspaces[1].test_split(Direction::Horizontal);
++        state.workspaces[1].tabs[0].layout.focus_pane(fallback);
++        for pane in state.workspaces[1].tabs[0].panes.values_mut() {
++            pane.seen = false;
++        }
++        state.selected = 0;
++
++        state.close_selected_workspace();
++
++        assert_eq!(state.active, Some(0));
++        assert!(state.workspaces[0].pane_state(fallback).unwrap().seen);
++        assert!(!state.workspaces[0].pane_state(sibling).unwrap().seen);
++    }
++
++    #[test]
++    fn closing_focused_pane_marks_only_fallback_pane_seen() {
++        let mut state = app_with_workspaces(&["a"]);
++        let closing = state.workspaces[0].tabs[0].root_pane;
++        state.workspaces[0].test_split(Direction::Horizontal);
++        state.workspaces[0].test_split(Direction::Vertical);
++        state.workspaces[0].tabs[0].layout.focus_pane(closing);
++        for pane in state.workspaces[0].tabs[0].panes.values_mut() {
++            pane.seen = false;
++        }
++
++        assert!(!state.close_pane());
++
++        let tab = &state.workspaces[0].tabs[0];
++        let focused = tab.layout.focused();
++        assert!(tab.panes[&focused].seen);
++        assert!(tab
++            .panes
++            .iter()
++            .filter(|(pane_id, _)| **pane_id != focused)
++            .all(|(_, pane)| !pane.seen));
++    }
++
++    #[test]
++    fn closing_active_tab_marks_only_fallback_tab_pane_seen() {
++        let mut state = app_with_workspaces(&["a"]);
++        let closing_root = state.workspaces[0].tabs[0].root_pane;
++        let fallback_tab = state.workspaces[0].test_add_tab(Some("fallback"));
++        let background_tab = state.workspaces[0].test_add_tab(Some("background"));
++        let fallback = state.workspaces[0].tabs[fallback_tab].root_pane;
++        let background = state.workspaces[0].tabs[background_tab].root_pane;
++        state.workspaces[0].active_tab = 0;
++        for tab in &mut state.workspaces[0].tabs {
++            for pane in tab.panes.values_mut() {
++                pane.seen = false;
++            }
++        }
++
++        assert!(!state.close_tab());
++
++        assert!(state.workspaces[0].pane_state(fallback).unwrap().seen);
++        assert!(!state.workspaces[0].pane_state(background).unwrap().seen);
++        assert!(state.workspaces[0].pane_state(closing_root).is_none());
      }
  
      #[test]
@@ -171,6 +395,101 @@ index ccdd4af..5c01f56 100644
          self.state.settle_terminal_mode_after_focus();
          self.agent_info(resolved.ws_idx, resolved.pane_id)
              .ok_or_else(|| TerminalTargetError::NotFound {
+diff --git a/src/app/api.rs b/src/app/api.rs
+index 5f81a5c..d2543cf 100644
+--- a/src/app/api.rs
++++ b/src/app/api.rs
+@@ -97,6 +97,10 @@ impl App {
+     }
+ 
+     pub(crate) fn handle_internal_event(&mut self, ev: AppEvent) {
++        let pane_died = matches!(&ev, AppEvent::PaneDied { .. });
++        let previous_focus = pane_died
++            .then(|| self.state.current_pane_focus_target())
++            .flatten();
+         if let AppEvent::ClipboardWrite { content } = ev {
+             #[cfg(not(test))]
+             crate::selection::write_osc52_bytes(&content);
+@@ -314,6 +318,10 @@ impl App {
+                 tab_zoomed_before_exit,
+             );
+         }
++        if pane_died {
++            self.state
++                .mark_focused_pane_seen_after_transition(previous_focus);
++        }
+         if let Some((ws_idx, tab_idx)) = pane_exit_layout_target {
+             self.emit_layout_updated_event(ws_idx, tab_idx);
+         }
+@@ -2008,6 +2016,41 @@ mod tests {
+         )));
+     }
+ 
++    #[test]
++    fn pane_death_marks_only_fallback_pane_seen() {
++        let (_api_tx, api_rx) = tokio::sync::mpsc::unbounded_channel();
++        let mut app = App::new(
++            &crate::config::Config::default(),
++            true,
++            None,
++            api_rx,
++            crate::api::EventHub::default(),
++        );
++        let mut workspace = crate::workspace::Workspace::test_new("pane-death");
++        let closing = workspace.tabs[0].root_pane;
++        workspace.test_split(ratatui::layout::Direction::Horizontal);
++        workspace.test_split(ratatui::layout::Direction::Vertical);
++        workspace.tabs[0].layout.focus_pane(closing);
++        for pane in workspace.tabs[0].panes.values_mut() {
++            pane.seen = false;
++        }
++        app.state.workspaces = vec![workspace];
++        app.state.ensure_test_terminals();
++        app.state.active = Some(0);
++        app.state.mode = Mode::Terminal;
++
++        app.handle_internal_event(AppEvent::PaneDied { pane_id: closing });
++
++        let tab = &app.state.workspaces[0].tabs[0];
++        let focused = tab.layout.focused();
++        assert!(tab.panes[&focused].seen);
++        assert!(tab
++            .panes
++            .iter()
++            .filter(|(pane_id, _)| **pane_id != focused)
++            .all(|(_, pane)| !pane.seen));
++    }
++
+     #[test]
+     fn overlay_exit_layout_updated_uses_restored_zoom_state() {
+         let event_hub = crate::api::EventHub::default();
+@@ -2077,11 +2120,16 @@ mod tests {
+     }
+ 
+     #[test]
+-    fn overlay_exit_restores_previous_focus_when_overlay_still_focused() {
++    fn overlay_exit_restores_and_marks_only_previous_focus_seen() {
+         let mut workspace = crate::workspace::Workspace::test_new("overlay");
+         let previous_focus = workspace.tabs[0].root_pane;
+         let overlay_pane = workspace.test_split(ratatui::layout::Direction::Horizontal);
++        let unrelated = workspace.test_split(ratatui::layout::Direction::Vertical);
++        workspace.tabs[0].layout.focus_pane(overlay_pane);
+         workspace.tabs[0].zoomed = true;
++        for pane in workspace.tabs[0].panes.values_mut() {
++            pane.seen = false;
++        }
+         let mut app = app_with_overlay(workspace, overlay_pane, previous_focus, false);
+ 
+         app.handle_internal_event(AppEvent::PaneDied {
+@@ -2091,6 +2139,8 @@ mod tests {
+         let tab = &app.state.workspaces[0].tabs[0];
+         assert_eq!(app.state.workspaces[0].active_tab, 0);
+         assert_eq!(tab.layout.focused(), previous_focus);
++        assert!(tab.panes[&previous_focus].seen);
++        assert!(!tab.panes[&unrelated].seen);
+         assert!(!tab.zoomed);
+         assert!(app.overlay_panes.is_empty());
+     }
 diff --git a/src/app/api/agents.rs b/src/app/api/agents.rs
 index 8bc2946..32712da 100644
 --- a/src/app/api/agents.rs
@@ -217,7 +536,7 @@ index 8bc2946..32712da 100644
  
      #[test]
 diff --git a/src/app/api/panes.rs b/src/app/api/panes.rs
-index 72798a1..ebda3c8 100644
+index 72798a1..7d75442 100644
 --- a/src/app/api/panes.rs
 +++ b/src/app/api/panes.rs
 @@ -167,7 +167,7 @@ impl App {
@@ -229,7 +548,135 @@ index 72798a1..ebda3c8 100644
          self.state.settle_terminal_mode_after_focus();
  
          let Some(pane) = self.pane_info(ws_idx, pane_id) else {
-@@ -3672,13 +3672,15 @@ mod tests {
+@@ -949,10 +949,15 @@ impl App {
+         if focus || self.state.active.is_none() {
+             self.state
+                 .switch_workspace_tab(target_ws_idx, target_tab_idx);
+-            self.state
+-                .record_pane_focus_change(previous_focus, target_ws_idx, moved_pane_id);
++            self.state.record_pane_focus_change(
++                previous_focus.clone(),
++                target_ws_idx,
++                moved_pane_id,
++            );
+             self.state.settle_terminal_mode_after_focus();
+         }
++        self.state
++            .mark_focused_pane_seen_after_transition(previous_focus);
+         let created_workspace = created_workspace.then(|| self.workspace_info(target_ws_idx));
+         let created_tab = if created_tab {
+             self.tab_info(target_ws_idx, target_tab_idx)
+@@ -1548,6 +1553,7 @@ impl App {
+         }
+         let workspace_snapshot = self.workspace_info(ws_idx);
+         let terminal_id = self.state.terminal_id_for_pane(ws_idx, pane_id);
++        let previous_focus = self.state.current_pane_focus_target();
+         let should_close_workspace = {
+             let Some(ws) = self.state.workspaces.get_mut(ws_idx) else {
+                 return Err(pane_not_found(id, &target.pane_id));
+@@ -1575,6 +1581,8 @@ impl App {
+             });
+         } else {
+             self.state.remove_unattached_terminal_ids(terminal_id);
++            self.state
++                .mark_focused_pane_seen_after_transition(previous_focus);
+             self.shutdown_detached_terminal_runtimes();
+             self.schedule_session_save();
+             self.emit_event(EventEnvelope {
+@@ -2238,6 +2246,39 @@ mod tests {
+         assert!(app.state.workspaces.is_empty());
+     }
+ 
++    #[test]
++    fn api_pane_close_marks_only_fallback_pane_seen() {
++        let mut app = app_with_linked_worktree();
++        app.state.active = Some(0);
++        app.state.selected = 0;
++        let closing = app.state.workspaces[0].tabs[0].root_pane;
++        app.state.workspaces[0].test_split(ratatui::layout::Direction::Horizontal);
++        app.state.workspaces[0].test_split(ratatui::layout::Direction::Vertical);
++        app.state.workspaces[0].tabs[0].layout.focus_pane(closing);
++        for pane in app.state.workspaces[0].tabs[0].panes.values_mut() {
++            pane.seen = false;
++        }
++        let public_pane_id = app.public_pane_id(0, closing).unwrap();
++
++        let response = app.handle_pane_close(
++            "req".into(),
++            PaneTarget {
++                pane_id: public_pane_id,
++            },
++        );
++
++        let success: SuccessResponse = serde_json::from_str(&response).unwrap();
++        assert_eq!(success.result, ResponseResult::Ok {});
++        let tab = &app.state.workspaces[0].tabs[0];
++        let focused = tab.layout.focused();
++        assert!(tab.panes[&focused].seen);
++        assert!(tab
++            .panes
++            .iter()
++            .filter(|(pane_id, _)| **pane_id != focused)
++            .all(|(_, pane)| !pane.seen));
++    }
++
+     #[test]
+     fn api_pane_current_prefers_caller_pane_id() {
+         let mut app = app_with_linked_worktree();
+@@ -3117,6 +3158,52 @@ mod tests {
+         );
+     }
+ 
++    #[test]
++    fn api_pane_move_without_focus_marks_only_source_fallback_seen() {
++        let mut app = app_with_linked_worktree();
++        app.state.active = Some(0);
++        app.state.selected = 0;
++        let source = app.state.workspaces[0].tabs[0].root_pane;
++        let fallback = app.state.workspaces[0].test_split(ratatui::layout::Direction::Horizontal);
++        app.state.workspaces[0].tabs[0].layout.focus_pane(source);
++        let target_tab = app.state.workspaces[0].test_add_tab(Some("target"));
++        let target = app.state.workspaces[0].tabs[target_tab].root_pane;
++        app.state.workspaces[0].active_tab = 0;
++        for tab in &mut app.state.workspaces[0].tabs {
++            for pane in tab.panes.values_mut() {
++                pane.seen = false;
++            }
++        }
++        seed_terminal_states(&mut app);
++        let source_public = app.public_pane_id(0, source).unwrap();
++        let target_tab_public = app.public_tab_id(0, target_tab).unwrap();
++        let target_public = app.public_pane_id(0, target).unwrap();
++
++        let response = app.handle_pane_move(
++            "req".into(),
++            PaneMoveParams {
++                pane_id: source_public,
++                destination: PaneMoveDestination::Tab {
++                    tab_id: target_tab_public,
++                    target_pane_id: Some(target_public),
++                    split: SplitDirection::Right,
++                    ratio: None,
++                },
++                focus: false,
++            },
++        );
++
++        let success: SuccessResponse = serde_json::from_str(&response).unwrap();
++        let ResponseResult::PaneMove { move_result } = success.result else {
++            panic!("expected pane move response");
++        };
++        assert!(move_result.changed);
++        assert_eq!(app.state.workspaces[0].focused_pane_id(), Some(fallback));
++        assert!(app.state.workspaces[0].pane_state(fallback).unwrap().seen);
++        assert!(!app.state.workspaces[0].pane_state(target).unwrap().seen);
++        assert!(!app.state.workspaces[0].pane_state(source).unwrap().seen);
++    }
++
+     #[test]
+     fn api_pane_move_recovery_restores_removed_source_workspace() {
+         let mut app = app_with_linked_worktree();
+@@ -3672,13 +3759,15 @@ mod tests {
      }
  
      #[test]
@@ -246,7 +693,7 @@ index 72798a1..ebda3c8 100644
          let terminal_id = app.state.workspaces[0].tabs[0].panes[&pane_id]
              .attached_terminal_id
              .clone();
-@@ -3688,6 +3690,11 @@ mod tests {
+@@ -3688,6 +3777,11 @@ mod tests {
              .get_mut(&pane_id)
              .unwrap()
              .seen = false;
@@ -258,7 +705,7 @@ index 72798a1..ebda3c8 100644
          app.state.workspaces[0].tabs[0].layout.focus_pane(pane_id);
  
          let public_pane_id = app.public_pane_id(0, pane_id).unwrap();
-@@ -3703,6 +3710,13 @@ mod tests {
+@@ -3703,6 +3797,13 @@ mod tests {
              panic!("expected pane info response");
          };
          assert_eq!(pane.agent_status, crate::api::schema::AgentStatus::Idle);
@@ -272,6 +719,65 @@ index 72798a1..ebda3c8 100644
      }
  
      #[test]
+diff --git a/src/app/api/tabs.rs b/src/app/api/tabs.rs
+index 42d2b02..9052184 100644
+--- a/src/app/api/tabs.rs
++++ b/src/app/api/tabs.rs
+@@ -273,6 +273,7 @@ impl App {
+             return encode_success(id, ResponseResult::Ok {});
+         }
+ 
++        let previous_focus = self.state.current_pane_focus_target();
+         let Some(ws) = self.state.workspaces.get_mut(ws_idx) else {
+             return tab_not_found(id, &target.tab_id);
+         };
+@@ -285,6 +286,8 @@ impl App {
+         }
+         self.state.remove_plugin_pane_records(pane_ids);
+         self.state.remove_unattached_terminal_ids(terminal_ids);
++        self.state
++            .mark_focused_pane_seen_after_transition(previous_focus);
+         self.shutdown_detached_terminal_runtimes();
+         self.schedule_session_save();
+         self.emit_event(EventEnvelope {
+@@ -380,6 +383,37 @@ mod tests {
+         ));
+     }
+ 
++    #[test]
++    fn api_tab_close_marks_only_fallback_tab_pane_seen() {
++        let event_hub = crate::api::EventHub::default();
++        let (_api_tx, api_rx) = tokio::sync::mpsc::unbounded_channel();
++        let mut app = App::new(&Config::default(), true, None, api_rx, event_hub);
++        let mut workspace = Workspace::test_new("tabs");
++        let closing = workspace.tabs[0].root_pane;
++        let fallback_tab = workspace.test_add_tab(Some("fallback"));
++        let background_tab = workspace.test_add_tab(Some("background"));
++        let fallback = workspace.tabs[fallback_tab].root_pane;
++        let background = workspace.tabs[background_tab].root_pane;
++        workspace.active_tab = 0;
++        for tab in &mut workspace.tabs {
++            for pane in tab.panes.values_mut() {
++                pane.seen = false;
++            }
++        }
++        app.state.workspaces = vec![workspace];
++        app.state.active = Some(0);
++        app.state.selected = 0;
++        let tab_id = app.public_tab_id(0, 0).unwrap();
++
++        let response = app.handle_tab_close("req".into(), TabTarget { tab_id });
++
++        let success: SuccessResponse = serde_json::from_str(&response).unwrap();
++        assert_eq!(success.result, ResponseResult::Ok {});
++        assert!(app.state.workspaces[0].pane_state(fallback).unwrap().seen);
++        assert!(!app.state.workspaces[0].pane_state(background).unwrap().seen);
++        assert!(app.state.workspaces[0].pane_state(closing).is_none());
++    }
++
+     #[test]
+     fn api_tab_move_reorders_tabs_in_target_workspace() {
+         let event_hub = crate::api::EventHub::default();
 diff --git a/src/app/mod.rs b/src/app/mod.rs
 index d049c0f..eb0437a 100644
 --- a/src/app/mod.rs

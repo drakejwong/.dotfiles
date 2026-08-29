@@ -114,8 +114,9 @@ if $run_tests; then
   nix "${nix_args[@]}" develop --command env CARGO_TARGET_DIR="$cargo_target_dir" \
     bash -lc 'cargo fmt --check && \
       cargo test --bin herdr double_prefix && \
-      cargo test --bin herdr marks_only_focused && \
-      cargo test --bin herdr focusing_background_pane_leaves_its_unfocused_sibling_unseen'
+      cargo test --bin herdr seen && \
+      cargo test --bin herdr last_pane_jumps_across_workspaces_and_tabs && \
+      cargo test --bin herdr focus_agent_entry_succeeds_for_already_focused_agent'
 fi
 
 echo "Building the Nix release package..."
