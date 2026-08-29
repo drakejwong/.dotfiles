@@ -29,6 +29,7 @@ nix-env -iA \
 stow git
 stow jj
 stow ghostty
+stow herdr
 stow nvim
 stow tmux
 stow zsh

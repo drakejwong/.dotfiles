@@ -4,9 +4,9 @@
 [keys]
 # Prefix key to enter prefix mode (default: "ctrl+b")
 prefix = "ctrl+s"
-# Open settings with prefix+, and toggle focused-pane zoom with prefix+s.
+# Open settings with prefix+,. Double-prefix toggles focused-pane zoom.
 settings = "prefix+comma"
-zoom = "prefix+s"
+zoom = "prefix+ctrl+s"
 # Default is prefix+v; use | like tmux's vertical split.
 split_vertical = "prefix+|"
 # Direct pane navigation, no prefix required.

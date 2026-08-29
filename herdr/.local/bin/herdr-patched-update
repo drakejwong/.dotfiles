@@ -1,0 +1,159 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  cat <<'EOF'
+Usage: herdr-patched-update [--build-only] [--skip-tests] [TAG]
+
+Build the latest stable Herdr release (or TAG) with the maintained
+configurable-double-prefix patch, then install it through the Nix profile.
+
+Options:
+  --build-only  Build and verify without changing the Nix profile.
+  --skip-tests  Skip focused Rust tests (the Nix release build still runs).
+  -h, --help    Show this help.
+EOF
+}
+
+build_only=false
+run_tests=true
+tag=""
+while (($#)); do
+  case "$1" in
+    --build-only)
+      build_only=true
+      ;;
+    --skip-tests)
+      run_tests=false
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    -*)
+      echo "unknown option: $1" >&2
+      usage >&2
+      exit 2
+      ;;
+    *)
+      if [[ -n "$tag" ]]; then
+        echo "only one release tag may be specified" >&2
+        exit 2
+      fi
+      tag="$1"
+      ;;
+  esac
+  shift
+done
+
+source_path=${BASH_SOURCE[0]}
+while [[ -L "$source_path" ]]; do
+  source_dir=$(cd -P "$(dirname "$source_path")" >/dev/null 2>&1 && pwd)
+  source_path=$(readlink "$source_path")
+  [[ "$source_path" = /* ]] || source_path="$source_dir/$source_path"
+done
+script_dir=$(cd -P "$(dirname "$source_path")" >/dev/null 2>&1 && pwd)
+patch_file="$script_dir/../share/herdr-patched/double-prefix-action.patch"
+
+if [[ ! -r "$patch_file" ]]; then
+  echo "missing Herdr patch: $patch_file" >&2
+  exit 1
+fi
+
+if [[ -z "$tag" ]]; then
+  echo "Resolving the latest stable Herdr release..."
+  tag=$(
+    /usr/bin/curl --fail --silent --show-error --location \
+      --header 'Accept: application/vnd.github+json' \
+      --header 'User-Agent: herdr-patched-update' \
+      https://api.github.com/repos/herdrdev/herdr/releases/latest \
+      | /usr/bin/python3 -c 'import json, sys; print(json.load(sys.stdin)["tag_name"])'
+  )
+fi
+
+if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
+  echo "refusing invalid release tag: $tag" >&2
+  exit 1
+fi
+
+work_dir=$(mktemp -d "${TMPDIR:-/tmp}/herdr-patched.XXXXXX")
+trap 'rm -rf "$work_dir"' EXIT
+source_dir="$work_dir/herdr"
+
+echo "Fetching Herdr $tag..."
+git clone --quiet --depth 1 --branch "$tag" https://github.com/herdrdev/herdr.git "$source_dir"
+cd "$source_dir"
+
+if git apply --check "$patch_file"; then
+  git apply "$patch_file"
+  echo "Applied configurable-double-prefix patch."
+elif git apply --reverse --check "$patch_file"; then
+  echo "The release already contains the maintained patch; no reapplication needed."
+else
+  echo "The maintained patch does not apply cleanly to Herdr $tag." >&2
+  echo "Nothing was installed. Port and retest the patch before upgrading." >&2
+  exit 1
+fi
+
+git diff --check
+nix_args=(--extra-experimental-features 'nix-command flakes')
+
+if $run_tests; then
+  echo "Running formatting and focused double-prefix tests..."
+  cargo_target_dir="${XDG_CACHE_HOME:-$HOME/.cache}/herdr-patched/cargo-target"
+  mkdir -p "$cargo_target_dir"
+  nix "${nix_args[@]}" develop --command env CARGO_TARGET_DIR="$cargo_target_dir" \
+    bash -lc 'cargo fmt --check && cargo test --bin herdr double_prefix'
+fi
+
+echo "Building the Nix release package..."
+out_path=$(nix "${nix_args[@]}" build ".#herdr" --no-link --print-out-paths)
+if [[ ! -x "$out_path/bin/herdr" ]]; then
+  echo "Nix build did not produce an executable Herdr binary" >&2
+  exit 1
+fi
+"$out_path/bin/herdr" --version
+
+if $build_only; then
+  echo "Verified build: $out_path"
+  exit 0
+fi
+
+profile_json=$(nix "${nix_args[@]}" profile list --json)
+old_profile_names=$(
+  /usr/bin/python3 -c '
+import json, os, sys
+for name, element in json.load(sys.stdin).get("elements", {}).items():
+    if any("-herdr-" in os.path.basename(path) for path in element.get("storePaths", [])):
+        print(name)
+' <<<"$profile_json"
+)
+old_profile_count=$(printf '%s\n' "$old_profile_names" | grep -c . || true)
+
+if ((old_profile_count > 1)); then
+  echo "multiple Nix-profile Herdr entries found; refusing an ambiguous replacement:" >&2
+  printf '  %s\n' "$old_profile_names" >&2
+  exit 1
+fi
+
+if ((old_profile_count == 1)); then
+  old_name=$old_profile_names
+  echo "Replacing Nix profile entry $old_name..."
+  nix "${nix_args[@]}" profile remove "$old_name"
+  if ! nix "${nix_args[@]}" profile install "$out_path"; then
+    echo "Install failed; rolling the Nix profile back to its prior generation." >&2
+    nix "${nix_args[@]}" profile rollback
+    exit 1
+  fi
+else
+  echo "Installing Herdr into the Nix profile..."
+  nix "${nix_args[@]}" profile install "$out_path"
+fi
+
+installed=$(command -v herdr || true)
+echo "Installed patched Herdr $tag from $out_path"
+if [[ "$installed" != "$HOME/.nix-profile/bin/herdr" ]]; then
+  echo "Note: this shell currently resolves herdr as ${installed:-<not found>}." >&2
+  echo "Ensure $HOME/.nix-profile/bin precedes other Herdr installs in PATH." >&2
+fi
+echo "Already-running Herdr servers keep their current binary until restarted."
