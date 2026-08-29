@@ -1,0 +1,371 @@
+diff --git a/src/app/actions.rs b/src/app/actions.rs
+index 07f7278..bfb0e6b 100644
+--- a/src/app/actions.rs
++++ b/src/app/actions.rs
+@@ -328,25 +328,27 @@ impl AppState {
+             pane_id,
+         };
+         if previous.as_ref() == Some(&target) {
++            self.mark_focused_pane_seen();
+             return false;
+         }
+ 
+         if self.copy_mode.is_some() {
+             self.clear_copy_mode_selection();
+         }
+-        self.switch_workspace_tab(ws_idx, tab_idx);
+-        if let Some(tab) = self
++        self.switch_workspace_tab_without_marking_seen(ws_idx, tab_idx);
++        let Some(tab) = self
+             .workspaces
+             .get_mut(ws_idx)
+             .and_then(|ws| ws.tabs.get_mut(tab_idx))
+-        {
+-            tab.layout.focus_pane(pane_id);
+-            self.previous_pane_focus = previous;
+-            self.mark_session_dirty();
+-            self.sync_copy_mode_with_focus();
+-            return true;
+-        }
+-        false
++        else {
++            return false;
++        };
++        tab.layout.focus_pane(pane_id);
++        self.previous_pane_focus = previous;
++        self.mark_session_dirty();
++        self.sync_copy_mode_with_focus();
++        self.mark_focused_pane_seen();
++        true
+     }
+ 
+     #[cfg(test)]
+@@ -1142,6 +1144,19 @@ impl AppState {
+     }
+ 
+     pub(crate) fn switch_workspace_tab(&mut self, ws_idx: usize, tab_idx: usize) -> bool {
++        self.switch_workspace_tab_with_seen(ws_idx, tab_idx, true)
++    }
++
++    fn switch_workspace_tab_without_marking_seen(&mut self, ws_idx: usize, tab_idx: usize) -> bool {
++        self.switch_workspace_tab_with_seen(ws_idx, tab_idx, false)
++    }
++
++    fn switch_workspace_tab_with_seen(
++        &mut self,
++        ws_idx: usize,
++        tab_idx: usize,
++        mark_focused_pane_seen: bool,
++    ) -> bool {
+         if ws_idx >= self.workspaces.len() {
+             return false;
+         }
+@@ -1164,7 +1179,11 @@ impl AppState {
+         self.mark_session_dirty();
+         self.ensure_workspace_visible(ws_idx);
+         if let Some(ws) = self.workspaces.get_mut(ws_idx) {
+-            ws.switch_tab(tab_idx);
++            if mark_focused_pane_seen {
++                ws.switch_tab(tab_idx);
++            } else {
++                ws.activate_tab(tab_idx);
++            }
+             let tab_id =
+                 public_tab_id_for_index(ws, tab_idx).unwrap_or_else(|| workspace_id.clone());
+             crate::logging::tab_focused(&workspace_id, &tab_id);
+@@ -1274,26 +1293,13 @@ impl AppState {
+         }
+     }
+ 
+-    pub(crate) fn mark_active_tab_seen(&mut self) -> bool {
++    pub(crate) fn mark_focused_pane_seen(&mut self) -> bool {
+         let Some(ws_idx) = self.active else {
+             return false;
+         };
+-        let Some(tab) = self
+-            .workspaces
++        self.workspaces
+             .get_mut(ws_idx)
+-            .and_then(crate::workspace::Workspace::active_tab_mut)
+-        else {
+-            return false;
+-        };
+-
+-        let mut changed = false;
+-        for pane in tab.panes.values_mut() {
+-            if !pane.seen {
+-                pane.seen = true;
+-                changed = true;
+-            }
+-        }
+-        changed
++            .is_some_and(crate::workspace::Workspace::mark_focused_pane_seen)
+     }
+ 
+     pub(crate) fn visible_workspace_order(&self) -> Vec<usize> {
+@@ -4549,14 +4555,49 @@ mod tests {
+     }
+ 
+     #[test]
+-    fn switch_workspace_marks_panes_seen() {
++    fn switch_workspace_marks_only_focused_pane_seen() {
+         let mut state = app_with_workspaces(&["a", "b"]);
+-        // Mark a pane in workspace 1 as unseen
+-        let id = *state.workspaces[1].panes.keys().next().unwrap();
+-        state.workspaces[1].panes.get_mut(&id).unwrap().seen = false;
++        let root = state.workspaces[1].tabs[0].root_pane;
++        let split = state.workspaces[1].test_split(Direction::Horizontal);
++        state.workspaces[1].tabs[0].layout.focus_pane(root);
++        state.workspaces[1].tabs[0]
++            .panes
++            .get_mut(&root)
++            .unwrap()
++            .seen = false;
++        state.workspaces[1].tabs[0]
++            .panes
++            .get_mut(&split)
++            .unwrap()
++            .seen = false;
+ 
+         state.switch_workspace(1);
+-        assert!(state.workspaces[1].panes.get(&id).unwrap().seen);
++
++        assert!(state.workspaces[1].pane_state(root).unwrap().seen);
++        assert!(!state.workspaces[1].pane_state(split).unwrap().seen);
++    }
++
++    #[test]
++    fn focusing_background_pane_leaves_its_unfocused_sibling_unseen() {
++        let mut state = app_with_workspaces(&["a", "b"]);
++        let root = state.workspaces[1].tabs[0].root_pane;
++        let split = state.workspaces[1].test_split(Direction::Horizontal);
++        state.workspaces[1].tabs[0].layout.focus_pane(root);
++        state.workspaces[1].tabs[0]
++            .panes
++            .get_mut(&root)
++            .unwrap()
++            .seen = false;
++        state.workspaces[1].tabs[0]
++            .panes
++            .get_mut(&split)
++            .unwrap()
++            .seen = false;
++
++        assert!(state.focus_pane_in_workspace(1, split));
++
++        assert!(!state.workspaces[1].pane_state(root).unwrap().seen);
++        assert!(state.workspaces[1].pane_state(split).unwrap().seen);
+     }
+ 
+     #[test]
+diff --git a/src/app/agents.rs b/src/app/agents.rs
+index b2aac01..2e8e0c5 100644
+--- a/src/app/agents.rs
++++ b/src/app/agents.rs
+@@ -79,7 +79,7 @@ impl App {
+         let resolved = self.resolve_agent_target(target)?;
+         self.state
+             .focus_pane_in_workspace(resolved.ws_idx, resolved.pane_id);
+-        self.state.mark_active_tab_seen();
++        self.state.mark_focused_pane_seen();
+         self.state.settle_terminal_mode_after_focus();
+         self.agent_info(resolved.ws_idx, resolved.pane_id)
+             .ok_or_else(|| TerminalTargetError::NotFound {
+diff --git a/src/app/api/agents.rs b/src/app/api/agents.rs
+index 1ed13ef..fe48e59 100644
+--- a/src/app/api/agents.rs
++++ b/src/app/api/agents.rs
+@@ -566,11 +566,13 @@ mod tests {
+     }
+ 
+     #[test]
+-    fn agent_focus_marks_already_focused_done_agent_seen() {
++    fn agent_focus_marks_only_focused_done_agent_seen() {
+         let mut app = app_with_agent();
+         app.state.outer_terminal_focus = Some(false);
+ 
+         let pane_id = app.state.workspaces[0].tabs[0].root_pane;
++        let sibling_pane =
++            app.state.workspaces[0].test_split(ratatui::layout::Direction::Horizontal);
+         let terminal_id = app.state.workspaces[0].tabs[0].panes[&pane_id]
+             .attached_terminal_id
+             .clone();
+@@ -584,6 +586,11 @@ mod tests {
+             .get_mut(&pane_id)
+             .unwrap()
+             .seen = false;
++        app.state.workspaces[0].tabs[0]
++            .panes
++            .get_mut(&sibling_pane)
++            .unwrap()
++            .seen = false;
+         app.state.workspaces[0].tabs[0].layout.focus_pane(pane_id);
+ 
+         let response = app.handle_agent_focus(
+@@ -598,6 +605,13 @@ mod tests {
+             panic!("expected agent info response");
+         };
+         assert_eq!(agent.agent_status, AgentStatus::Idle);
++        assert!(app.state.workspaces[0].pane_state(pane_id).unwrap().seen);
++        assert!(
++            !app.state.workspaces[0]
++                .pane_state(sibling_pane)
++                .unwrap()
++                .seen
++        );
+     }
+ 
+     #[test]
+diff --git a/src/app/api/panes.rs b/src/app/api/panes.rs
+index 6615fa0..8ff89e1 100644
+--- a/src/app/api/panes.rs
++++ b/src/app/api/panes.rs
+@@ -174,7 +174,7 @@ impl App {
+         };
+ 
+         self.state.focus_pane_in_workspace(ws_idx, pane_id);
+-        self.state.mark_active_tab_seen();
++        self.state.mark_focused_pane_seen();
+         self.state.settle_terminal_mode_after_focus();
+ 
+         let Some(pane) = self.pane_info(ws_idx, pane_id) else {
+@@ -3743,13 +3743,15 @@ mod tests {
+     }
+ 
+     #[test]
+-    fn api_pane_focus_marks_already_focused_done_pane_seen() {
++    fn api_pane_focus_marks_only_focused_done_pane_seen() {
+         let mut app = app_with_linked_worktree();
+         app.state.active = Some(0);
+         app.state.selected = 0;
+         app.state.outer_terminal_focus = Some(false);
+ 
+         let pane_id = app.state.workspaces[0].tabs[0].root_pane;
++        let sibling_pane =
++            app.state.workspaces[0].test_split(ratatui::layout::Direction::Horizontal);
+         let terminal_id = app.state.workspaces[0].tabs[0].panes[&pane_id]
+             .attached_terminal_id
+             .clone();
+@@ -3759,6 +3761,11 @@ mod tests {
+             .get_mut(&pane_id)
+             .unwrap()
+             .seen = false;
++        app.state.workspaces[0].tabs[0]
++            .panes
++            .get_mut(&sibling_pane)
++            .unwrap()
++            .seen = false;
+         app.state.workspaces[0].tabs[0].layout.focus_pane(pane_id);
+ 
+         let public_pane_id = app.public_pane_id(0, pane_id).unwrap();
+@@ -3774,6 +3781,13 @@ mod tests {
+             panic!("expected pane info response");
+         };
+         assert_eq!(pane.agent_status, crate::api::schema::AgentStatus::Idle);
++        assert!(app.state.workspaces[0].pane_state(pane_id).unwrap().seen);
++        assert!(
++            !app.state.workspaces[0]
++                .pane_state(sibling_pane)
++                .unwrap()
++                .seen
++        );
+     }
+ 
+     #[test]
+diff --git a/src/app/mod.rs b/src/app/mod.rs
+index c28f62d..2632804 100644
+--- a/src/app/mod.rs
++++ b/src/app/mod.rs
+@@ -3799,11 +3799,12 @@ mod tests {
+     }
+ 
+     #[tokio::test]
+-    async fn outer_focus_gained_marks_visible_done_panes_seen() {
++    async fn outer_focus_gained_marks_only_focused_done_pane_seen() {
+         let mut app = test_app();
+         let mut workspace = Workspace::test_new("test");
+         let root_pane = workspace.tabs[0].root_pane;
+         let split_pane = workspace.test_split(ratatui::layout::Direction::Horizontal);
++        workspace.tabs[0].layout.focus_pane(root_pane);
+         let background_tab = workspace.test_add_tab(Some("background"));
+         let background_pane = workspace.tabs[background_tab].root_pane;
+ 
+@@ -3857,7 +3858,7 @@ mod tests {
+         assert!(handled);
+         assert_eq!(app.state.outer_terminal_focus, Some(true));
+         assert!(app.state.workspaces[0].tabs[0].panes[&root_pane].seen);
+-        assert!(app.state.workspaces[0].tabs[0].panes[&split_pane].seen);
++        assert!(!app.state.workspaces[0].tabs[0].panes[&split_pane].seen);
+         assert!(!app.state.workspaces[0].tabs[background_tab].panes[&background_pane].seen);
+     }
+ 
+diff --git a/src/app/runtime.rs b/src/app/runtime.rs
+index 8367a22..6805821 100644
+--- a/src/app/runtime.rs
++++ b/src/app/runtime.rs
+@@ -248,7 +248,7 @@ impl App {
+                     self.request_repaint();
+                 }
+                 self.state.outer_terminal_focus = Some(true);
+-                self.state.mark_active_tab_seen();
++                self.state.mark_focused_pane_seen();
+                 true
+             }
+             crate::raw_input::RawInputEvent::OuterFocusLost => {
+diff --git a/src/server/headless.rs b/src/server/headless.rs
+index f72b58e..ec3630b 100644
+--- a/src/server/headless.rs
++++ b/src/server/headless.rs
+@@ -1222,7 +1222,7 @@ impl HeadlessServer {
+         apply_keybindings(&mut self.app, &keybindings);
+         self.sync_visible_server_config_diagnostic(uses_local_keybindings);
+         if outer_terminal_focus == Some(true) {
+-            self.app.state.mark_active_tab_seen();
++            self.app.state.mark_focused_pane_seen();
+         }
+         self.app.set_host_terminal_appearance_state(
+             host_terminal_appearance,
+diff --git a/src/workspace.rs b/src/workspace.rs
+index 0a719ab..1739f7f 100644
+--- a/src/workspace.rs
++++ b/src/workspace.rs
+@@ -501,14 +501,32 @@ impl Workspace {
+         )
+     }
+ 
++    pub(crate) fn activate_tab(&mut self, idx: usize) -> bool {
++        if idx >= self.tabs.len() {
++            return false;
++        }
++        self.active_tab = idx;
++        true
++    }
++
++    pub(crate) fn mark_focused_pane_seen(&mut self) -> bool {
++        let Some(tab) = self.active_tab_mut() else {
++            return false;
++        };
++        let pane_id = tab.layout.focused();
++        let Some(pane) = tab.panes.get_mut(&pane_id) else {
++            return false;
++        };
++        if pane.seen {
++            return false;
++        }
++        pane.seen = true;
++        true
++    }
++
+     pub fn switch_tab(&mut self, idx: usize) {
+-        if idx < self.tabs.len() {
+-            self.active_tab = idx;
+-            if let Some(tab) = self.tabs.get_mut(idx) {
+-                for pane in tab.panes.values_mut() {
+-                    pane.seen = true;
+-                }
+-            }
++        if self.activate_tab(idx) {
++            self.mark_focused_pane_seen();
+         }
+     }
+ 
