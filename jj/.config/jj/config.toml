@@ -1,0 +1,27 @@
+#:schema https://jj-vcs.github.io/jj/latest/config-schema.json
+
+[user]
+name = "Drake Wong"
+email = "40375132+drakejwong@users.noreply.github.com"
+
+[git]
+colocate = true
+
+[ui]
+default-command = "log"
+diff-formatter = ":git"
+pager = "delta"
+
+[aliases]
+s = ["status"]
+l = ["log", "-r", "ancestors(@, 20)"]
+d = ["diff"]
+n = ["new"]
+c = ["commit"]
+desc = ["describe"]
+sq = ["squash"]
+sp = ["split"]
+ab = ["abandon"]
+u = ["undo"]
+fetch = ["git", "fetch"]
+push = ["git", "push"]

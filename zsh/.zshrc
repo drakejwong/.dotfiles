@@ -135,7 +135,21 @@ autoload edit-command-line
 zle -N edit-command-line
 bindkey '^x^x' edit-command-line
 
-# git
+# Jujutsu (primary VCS)
+alias j='jj'
+alias js='jj status'
+alias jl='jj log'
+alias jd='jj diff'
+alias jn='jj new'
+alias jc='jj commit'
+alias jdesc='jj describe'
+alias jsq='jj squash'
+alias jsp='jj split'
+alias ju='jj undo'
+alias jf='jj git fetch'
+alias jp='jj git push'
+
+# Git interoperability
 alias g='git'
 alias ga='git add'
 alias gb="git branch"

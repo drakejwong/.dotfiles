@@ -11,6 +11,7 @@ nix-env -iA \
 	nixpkgs.zsh \
 	nixpkgs.antibody \
 	nixpkgs.git \
+	nixpkgs.jujutsu \
 	nixpkgs.gh \
 	nixpkgs.neovim \
 	nixpkgs.tmux \
@@ -26,6 +27,7 @@ nix-env -iA \
 
 # stow dotfiles
 stow git
+stow jj
 stow ghostty
 stow nvim
 stow tmux
