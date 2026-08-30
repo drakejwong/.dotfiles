@@ -3,15 +3,15 @@
 keybind = super+shift+[=unbind
 keybind = super+shift+]=unbind
 
-# Let Herdr receive Cmd+1..9 for direct agent selection.
-keybind = super+1=unbind
-keybind = super+2=unbind
-keybind = super+3=unbind
-keybind = super+4=unbind
-keybind = super+5=unbind
-keybind = super+6=unbind
-keybind = super+7=unbind
-keybind = super+8=unbind
-keybind = super+9=unbind
+# Send Cmd+1..9 as Kitty keyboard sequences so Herdr receives Super+1..9.
+keybind = super+1=csi:49;9u
+keybind = super+2=csi:50;9u
+keybind = super+3=csi:51;9u
+keybind = super+4=csi:52;9u
+keybind = super+5=csi:53;9u
+keybind = super+6=csi:54;9u
+keybind = super+7=csi:55;9u
+keybind = super+8=csi:56;9u
+keybind = super+9=csi:57;9u
 
 # Leave Ctrl-S unbound so it passes directly to terminal applications such as Herdr.
