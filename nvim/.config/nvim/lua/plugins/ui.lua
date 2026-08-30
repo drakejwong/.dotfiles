@@ -28,6 +28,11 @@ function M.setup(pack)
             { icon = " ", key = "q", desc = "Quit", action = ":qa" },
           },
         },
+        -- Snacks' default startup section requires lazy.nvim's statistics module.
+        sections = {
+          { section = "header" },
+          { section = "keys", gap = 1, padding = 1 },
+        },
       },
       explorer = { enabled = true },
       indent = { enabled = true },
