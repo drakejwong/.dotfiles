@@ -38,7 +38,7 @@ function M.setup(pack)
     "nvim-ts-autotag",
   }, function()
     require("nvim-treesitter").setup()
-    require("nvim-treesitter-context").setup({ max_lines = 4, multiline_threshold = 2 })
+    require("treesitter-context").setup({ max_lines = 4, multiline_threshold = 2 })
     require("nvim-ts-autotag").setup()
     require("nvim-treesitter-textobjects").setup({
       move = { enable = true, set_jumps = true },
