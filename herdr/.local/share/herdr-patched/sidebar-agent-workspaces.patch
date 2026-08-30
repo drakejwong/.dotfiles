@@ -1,0 +1,418 @@
+diff --git a/src/app/actions.rs b/src/app/actions.rs
+index 6239b2f..0cb860d 100644
+--- a/src/app/actions.rs
++++ b/src/app/actions.rs
+@@ -1334,7 +1334,13 @@ impl AppState {
+     }
+ 
+     pub(crate) fn workspace_at_visible_position(&self, position: usize) -> Option<usize> {
+-        self.visible_workspace_order().get(position).copied()
++        let order = self.visible_workspace_order();
++        let target = if position == 8 {
++            order.len().checked_sub(1)?
++        } else {
++            position
++        };
++        order.get(target).copied()
+     }
+ 
+     pub(crate) fn move_selected_workspace_by_visible_delta(&mut self, delta: isize) {
+diff --git a/src/app/input/modal.rs b/src/app/input/modal.rs
+index 0a5c13e..a8b02cf 100644
+--- a/src/app/input/modal.rs
++++ b/src/app/input/modal.rs
+@@ -414,14 +414,18 @@ pub(super) fn open_rename_pane(state: &mut AppState, pane_id: crate::layout::Pan
+         return;
+     };
+     let terminal = state.terminals.get(&pane.attached_terminal_id);
++    let renaming_agent = terminal.is_some_and(crate::terminal::TerminalState::is_agent_terminal);
+     state.creating_new_tab = false;
+     state.requested_new_tab_name = None;
+     state.pending_workspace_create_cwd = None;
+     state.rename_pane_target = Some(pane_id);
+-    state.name_input = terminal
+-        .and_then(|t| t.manual_label.clone())
+-        .unwrap_or_default();
+-    state.name_input_replace_on_type = terminal.and_then(|t| t.manual_label.as_ref()).is_none();
++    state.name_input = if renaming_agent {
++        terminal.and_then(|terminal| terminal.agent_name.clone())
++    } else {
++        terminal.and_then(|terminal| terminal.manual_label.clone())
++    }
++    .unwrap_or_default();
++    state.name_input_replace_on_type = state.name_input.is_empty();
+     state.mode = Mode::RenamePane;
+ }
+ 
+@@ -571,7 +575,15 @@ pub(super) fn apply_rename_action(state: &mut AppState, action: ModalAction) {
+                             if let Some(pane) = ws.pane_state(pane_id) {
+                                 let terminal_id = pane.attached_terminal_id.clone();
+                                 if let Some(terminal) = state.terminals.get_mut(&terminal_id) {
+-                                    terminal.set_manual_label(new_name);
++                                    if terminal.is_agent_terminal() {
++                                        if new_name.is_empty() {
++                                            terminal.clear_agent_name();
++                                        } else {
++                                            terminal.set_agent_name(new_name);
++                                        }
++                                    } else {
++                                        terminal.set_manual_label(new_name);
++                                    }
+                                     state.mark_session_dirty();
+                                 }
+                             }
+@@ -843,6 +855,20 @@ pub(super) fn apply_context_menu_action(
+                 };
+             }
+         }
++        (
++            ContextMenuKind::Agent {
++                ws_idx,
++                tab_idx,
++                pane_id,
++            },
++            Some("Rename agent"),
++        ) => {
++            state.selected = ws_idx;
++            state.active = Some(ws_idx);
++            state.switch_tab(tab_idx);
++            state.focus_pane_in_workspace(ws_idx, pane_id);
++            open_rename_pane(state, pane_id);
++        }
+         (ContextMenuKind::Pane { pane_id, .. }, Some("Rename pane")) => {
+             open_rename_pane(state, pane_id);
+         }
+@@ -1083,14 +1109,31 @@ impl App {
+                 if let (Some(ws_idx), Some(pane_id)) =
+                     (self.state.active, self.state.rename_pane_target)
+                 {
+-                    if let Some(pane_id) = self.public_pane_id(ws_idx, pane_id) {
+-                        self.runtime_pane_rename(
+-                            "tui.pane.rename",
+-                            crate::api::schema::PaneRenameParams {
+-                                pane_id,
+-                                label: Some(new_name),
+-                            },
+-                        );
++                    let renaming_agent = self
++                        .state
++                        .workspaces
++                        .get(ws_idx)
++                        .and_then(|ws| ws.pane_state(pane_id))
++                        .and_then(|pane| self.state.terminals.get(&pane.attached_terminal_id))
++                        .is_some_and(crate::terminal::TerminalState::is_agent_terminal);
++                    if let Some(public_pane_id) = self.public_pane_id(ws_idx, pane_id) {
++                        if renaming_agent {
++                            self.runtime_agent_rename(
++                                "tui.agent.rename",
++                                crate::api::schema::AgentRenameParams {
++                                    target: public_pane_id,
++                                    name: (!new_name.is_empty()).then_some(new_name),
++                                },
++                            );
++                        } else {
++                            self.runtime_pane_rename(
++                                "tui.pane.rename",
++                                crate::api::schema::PaneRenameParams {
++                                    pane_id: public_pane_id,
++                                    label: Some(new_name),
++                                },
++                            );
++                        }
+                     }
+                 }
+             }
+@@ -1266,6 +1309,17 @@ impl App {
+                     leave_modal(&mut self.state);
+                 }
+             }
++            (
++                ContextMenuKind::Agent {
++                    ws_idx,
++                    tab_idx: _,
++                    pane_id,
++                },
++                Some("Rename agent"),
++            ) => {
++                self.focus_pane_internal_via_api(ws_idx, pane_id);
++                open_rename_pane(&mut self.state, pane_id);
++            }
+             (ContextMenuKind::Pane { pane_id, .. }, Some("Rename pane")) => {
+                 open_rename_pane(&mut self.state, pane_id);
+             }
+@@ -1599,6 +1653,74 @@ mod tests {
+         );
+     }
+ 
++    #[test]
++    fn rename_pane_action_renames_detected_agent_identity() {
++        let mut state = state_with_workspaces(&["test"]);
++        state.ensure_test_terminals();
++        let pane_id = state.workspaces[0].tabs[0].root_pane;
++        let terminal_id = state.workspaces[0].tabs[0].panes[&pane_id]
++            .attached_terminal_id
++            .clone();
++        state
++            .terminals
++            .get_mut(&terminal_id)
++            .unwrap()
++            .detected_agent = Some(crate::detect::Agent::Pi);
++
++        open_rename_pane(&mut state, pane_id);
++        assert_eq!(state.mode, Mode::RenamePane);
++        assert!(state.name_input.is_empty());
++        state.name_input = "reviewer".into();
++        handle_rename_key(
++            &mut state,
++            KeyEvent::new(KeyCode::Enter, KeyModifiers::empty()),
++        );
++
++        let terminal = &state.terminals[&terminal_id];
++        assert_eq!(terminal.agent_name.as_deref(), Some("reviewer"));
++        assert!(terminal.manual_label.is_none());
++    }
++
++    #[test]
++    fn runtime_rename_modal_renames_detected_agent_identity() {
++        let mut app = app_with_test_workspaces(&["test"]);
++        let pane_id = app.state.workspaces[0].tabs[0].root_pane;
++        let terminal_id = app.state.workspaces[0].tabs[0].panes[&pane_id]
++            .attached_terminal_id
++            .clone();
++        app.state
++            .terminals
++            .get_mut(&terminal_id)
++            .unwrap()
++            .detected_agent = Some(crate::detect::Agent::Pi);
++        open_rename_pane(&mut app.state, pane_id);
++        app.state.name_input = "reviewer".into();
++
++        app.save_rename_modal_via_api();
++
++        assert_eq!(
++            app.state.terminals[&terminal_id].agent_name.as_deref(),
++            Some("reviewer")
++        );
++        assert_eq!(app.state.mode, Mode::Terminal);
++    }
++
++    #[test]
++    fn agent_context_menu_offers_direct_rename() {
++        let menu = ContextMenuState {
++            kind: ContextMenuKind::Agent {
++                ws_idx: 0,
++                tab_idx: 0,
++                pane_id: crate::layout::PaneId::from_raw(1),
++            },
++            x: 0,
++            y: 0,
++            list: crate::app::state::MenuListState::new(0),
++        };
++
++        assert_eq!(menu.items(), vec!["Rename agent"]);
++    }
++
+     #[test]
+     fn rename_cancel_returns_to_terminal_when_workspace_is_active() {
+         let mut state = state_with_workspaces(&["test"]);
+diff --git a/src/app/input/mouse.rs b/src/app/input/mouse.rs
+index d43dcfc..3ebd9ce 100644
+--- a/src/app/input/mouse.rs
++++ b/src/app/input/mouse.rs
+@@ -1025,6 +1025,20 @@ impl AppState {
+                 {
+                     return None;
+                 }
++                if let Some((ws_idx, tab_idx, pane_id)) = self.agent_detail_target_at(mouse.row) {
++                    self.context_menu = Some(ContextMenuState {
++                        kind: ContextMenuKind::Agent {
++                            ws_idx,
++                            tab_idx,
++                            pane_id,
++                        },
++                        x: mouse.column,
++                        y: mouse.row,
++                        list: MenuListState::new(0),
++                    });
++                    self.mode = Mode::ContextMenu;
++                    return None;
++                }
+                 if let Some(idx) = self.workspace_at_row(mouse.row) {
+                     self.selected = idx;
+                     let kind = self
+diff --git a/src/app/input/navigate.rs b/src/app/input/navigate.rs
+index f30fc55..79ecbab 100644
+--- a/src/app/input/navigate.rs
++++ b/src/app/input/navigate.rs
+@@ -2273,6 +2273,15 @@ mod tests {
+         assert_eq!(state.selected, 2);
+     }
+ 
++    #[test]
++    fn workspace_shortcut_nine_targets_last_visible_workspace() {
++        let state = state_with_workspaces(&["one", "two", "three"]);
++
++        assert_eq!(state.workspace_at_visible_position(0), Some(0));
++        assert_eq!(state.workspace_at_visible_position(1), Some(1));
++        assert_eq!(state.workspace_at_visible_position(8), Some(2));
++    }
++
+     #[test]
+     fn indexed_switch_workspace_keybind_follows_grouped_sidebar_visual_order() {
+         let mut state = state_with_workspaces(&["main", "normal", "issue"]);
+diff --git a/src/app/runtime_mutations.rs b/src/app/runtime_mutations.rs
+index f765bf2..f103239 100644
+--- a/src/app/runtime_mutations.rs
++++ b/src/app/runtime_mutations.rs
+@@ -1,9 +1,9 @@
+ use crate::api::schema::{
+-    EmptyParams, LayoutSetSplitRatioParams, Method, PaneFocusDirectionParams, PaneRenameParams,
+-    PaneResizeParams, PaneSplitParams, PaneSwapParams, PaneTarget, PaneZoomParams, TabCreateParams,
+-    TabMoveParams, TabRenameParams, TabTarget, WorkspaceCreateParams, WorkspaceMoveBlockParams,
+-    WorkspaceMoveParams, WorkspaceRenameParams, WorkspaceTarget, WorktreeCreateParams,
+-    WorktreeOpenParams, WorktreeRemoveParams,
++    AgentRenameParams, EmptyParams, LayoutSetSplitRatioParams, Method, PaneFocusDirectionParams,
++    PaneRenameParams, PaneResizeParams, PaneSplitParams, PaneSwapParams, PaneTarget,
++    PaneZoomParams, TabCreateParams, TabMoveParams, TabRenameParams, TabTarget,
++    WorkspaceCreateParams, WorkspaceMoveBlockParams, WorkspaceMoveParams, WorkspaceRenameParams,
++    WorkspaceTarget, WorktreeCreateParams, WorktreeOpenParams, WorktreeRemoveParams,
+ };
+ 
+ use super::App;
+@@ -21,6 +21,14 @@ impl App {
+         self.dispatch_deferred_api_request(id, method)
+     }
+ 
++    pub(crate) fn runtime_agent_rename(
++        &mut self,
++        id: &'static str,
++        params: AgentRenameParams,
++    ) -> String {
++        self.dispatch_runtime_mutation(id, Method::AgentRename(params))
++    }
++
+     pub(crate) fn runtime_workspace_focus(
+         &mut self,
+         id: &'static str,
+diff --git a/src/app/state.rs b/src/app/state.rs
+index e6c23c4..5ec22aa 100644
+--- a/src/app/state.rs
++++ b/src/app/state.rs
+@@ -1190,6 +1190,11 @@ pub enum ContextMenuKind {
+         ws_idx: usize,
+         tab_idx: usize,
+     },
++    Agent {
++        ws_idx: usize,
++        tab_idx: usize,
++        pane_id: PaneId,
++    },
+     Pane {
+         ws_idx: usize,
+         tab_idx: usize,
+@@ -1245,6 +1250,7 @@ impl ContextMenuState {
+                 "Collapse",
+             ],
+             ContextMenuKind::Tab { .. } => &["New tab", "Rename", "Close"],
++            ContextMenuKind::Agent { .. } => &["Rename agent"],
+             ContextMenuKind::Pane {
+                 has_manual_label: true,
+                 source_pane_id: Some(_),
+@@ -2225,6 +2231,22 @@ impl AppState {
+                 ContextMenuKind::Tab { ws_idx, tab_idx } => {
+                     assert_tab_index(ws_idx, tab_idx, "context menu tab")
+                 }
++                ContextMenuKind::Agent {
++                    ws_idx,
++                    tab_idx,
++                    pane_id,
++                } => {
++                    assert_tab_index(ws_idx, tab_idx, "context menu agent tab");
++                    assert!(
++                        self.workspaces[ws_idx].tabs[tab_idx]
++                            .panes
++                            .contains_key(&pane_id),
++                        "context menu agent references pane {:?} outside workspace {} tab {}",
++                        pane_id,
++                        ws_idx,
++                        tab_idx
++                    );
++                }
+                 ContextMenuKind::Pane {
+                     ws_idx,
+                     tab_idx,
+diff --git a/src/ui/dialogs.rs b/src/ui/dialogs.rs
+index dae1c67..333674a 100644
+--- a/src/ui/dialogs.rs
++++ b/src/ui/dialogs.rs
+@@ -40,6 +40,20 @@ pub(crate) fn rename_button_rects(inner: Rect) -> (Rect, Rect, Rect) {
+     (rects[0], rects[1], rects[2])
+ }
+ 
++fn rename_target_is_agent(app: &AppState) -> bool {
++    let Some(ws_idx) = app.active else {
++        return false;
++    };
++    let Some(pane_id) = app.rename_pane_target else {
++        return false;
++    };
++    app.workspaces
++        .get(ws_idx)
++        .and_then(|ws| ws.pane_state(pane_id))
++        .and_then(|pane| app.terminals.get(&pane.attached_terminal_id))
++        .is_some_and(crate::terminal::TerminalState::is_agent_terminal)
++}
++
+ pub(super) fn render_rename_overlay(app: &AppState, frame: &mut Frame, area: Rect) {
+     super::dim_background(frame, area);
+ 
+@@ -48,6 +62,7 @@ pub(super) fn render_rename_overlay(app: &AppState, frame: &mut Frame, area: Rec
+         Mode::RenameWorkspace => "rename workspace",
+         Mode::RenameTab if app.creating_new_tab => "new tab",
+         Mode::RenameTab => "rename tab",
++        Mode::RenamePane if rename_target_is_agent(app) => "rename agent",
+         Mode::RenamePane => "rename pane",
+         _ => return,
+     };
+diff --git a/src/ui/sidebar.rs b/src/ui/sidebar.rs
+index d9f6197..a2ab965 100644
+--- a/src/ui/sidebar.rs
++++ b/src/ui/sidebar.rs
+@@ -169,7 +169,11 @@ fn collect_agent_panel_entries_with_runtimes(
+                         pane_label: detail.pane_label,
+                         terminal_title: detail.terminal_title,
+                         terminal_title_stripped: detail.terminal_title_stripped,
+-                        agent_label: Some(detail.agent_label),
++                        agent_label: ws
++                            .pane_state(detail.pane_id)
++                            .and_then(|pane| app.terminals.get(&pane.attached_terminal_id))
++                            .and_then(|terminal| terminal.agent_name.clone())
++                            .or_else(|| Some(workspace_label.clone())),
+                         agent_kind_label: detail.agent_kind_label,
+                         agent: detail.agent,
+                         state: detail.state,
+@@ -2301,6 +2305,24 @@ rows = [[{ token = "git_status", fg = "#123456" }]]
+         assert_eq!(entries[0].agent_label.as_deref(), Some("planner"));
+     }
+ 
++    #[test]
++    fn agent_panel_falls_back_to_workspace_label_without_custom_agent_name() {
++        let mut app = crate::app::state::AppState::test_new();
++        let workspace = Workspace::test_new("project-root");
++        let pane_id = workspace.tabs[0].root_pane;
++        app.workspaces = vec![workspace];
++        app.ensure_test_terminals();
++        let terminal_id = app.workspaces[0].tabs[0].panes[&pane_id]
++            .attached_terminal_id
++            .clone();
++        app.terminals.get_mut(&terminal_id).unwrap().detected_agent = Some(Agent::Pi);
++
++        let entries = agent_panel_entries(&app);
++
++        assert_eq!(entries[0].agent_label.as_deref(), Some("project-root"));
++        assert_eq!(entries[0].agent_kind_label.as_deref(), Some("pi"));
++    }
++
+     #[test]
+     fn expanded_sidebar_sections_handle_tiny_heights() {
+         let (ws_area, detail_area) = expanded_sidebar_sections(Rect::new(0, 0, 20, 5), 0.9);
