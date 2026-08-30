@@ -1,8 +1,8 @@
 diff --git a/src/ui/sidebar.rs b/src/ui/sidebar.rs
-index e1088c2..858816e 100644
+index e1088c2..5b4d47e 100644
 --- a/src/ui/sidebar.rs
 +++ b/src/ui/sidebar.rs
-@@ -546,6 +546,31 @@ pub(crate) fn agent_panel_body_rect(area: Rect, has_scrollbar: bool) -> Rect {
+@@ -546,6 +546,36 @@ pub(crate) fn agent_panel_body_rect(area: Rect, has_scrollbar: bool) -> Rect {
      Rect::new(area.x, body_y, body_width, body_height)
  }
  
@@ -19,22 +19,27 @@ index e1088c2..858816e 100644
 +fn agent_shortcut_glyph(
 +    entry_index: usize,
 +    entry_count: usize,
-+    is_active: bool,
++    is_filled: bool,
 +) -> Option<&'static str> {
 +    const OUTLINE: [&str; 9] = ["①", "②", "③", "④", "⑤", "⑥", "⑦", "⑧", "⑨"];
 +    const FILLED: [&str; 9] = ["❶", "❷", "❸", "❹", "❺", "❻", "❼", "❽", "❾"];
 +    let number = agent_shortcut_number(entry_index, entry_count)?;
-+    Some(if is_active {
++    Some(if is_filled {
 +        FILLED[number - 1]
 +    } else {
 +        OUTLINE[number - 1]
 +    })
 +}
 +
++fn agent_state_dot_is_filled(state: AgentState, seen: bool) -> bool {
++    matches!(state, AgentState::Blocked | AgentState::Working)
++        || matches!(state, AgentState::Idle) && !seen
++}
++
  fn resolved_agent_rows(app: &AppState, entry: &AgentPanelEntry) -> Vec<Vec<ResolvedToken>> {
      let label = entry
          .state_labels
-@@ -851,18 +876,23 @@ pub(super) fn render_sidebar_collapsed(app: &AppState, frame: &mut Frame, area:
+@@ -851,20 +881,21 @@ pub(super) fn render_sidebar_collapsed(app: &AppState, frame: &mut Frame, area:
          detail_area.height.saturating_sub(1),
      );
      if detail_content_area != Rect::default() {
@@ -49,75 +54,59 @@ index e1088c2..858816e 100644
              let is_active = app.is_active_pane(detail.ws_idx, detail.tab_idx, detail.pane_id);
 -            let position_style = if is_active {
 -                Style::default().fg(p.text).bg(p.active_row_bg)
-+            let label_color = state_label_color(detail.state, detail.seen, p);
-+            let shortcut_style = if is_active {
-+                Style::default()
-+                    .fg(p.active_row_bg)
-+                    .bg(label_color)
-+                    .add_modifier(Modifier::BOLD)
-             } else {
+-            } else {
 -                Style::default().fg(p.overlay0)
-+                Style::default().fg(label_color).add_modifier(Modifier::DIM)
-             };
-+            let shortcut = agent_shortcut_glyph(detail_idx, agent_entries.len(), is_active);
-             let (icon, icon_style) =
+-            };
+-            let (icon, icon_style) =
++            let (state_symbol, state_style) =
                  state_icon(detail.state, detail.seen, app.status_indicators, p);
++            let icon = agent_shortcut_glyph(
++                detail_idx,
++                agent_entries.len(),
++                agent_state_dot_is_filled(detail.state, detail.seen),
++            )
++            .unwrap_or(state_symbol);
  
-@@ -875,7 +905,11 @@ pub(super) fn render_sidebar_collapsed(app: &AppState, frame: &mut Frame, area:
+             if is_active {
+                 let buf = frame.buffer_mut();
+@@ -873,10 +904,15 @@ pub(super) fn render_sidebar_collapsed(app: &AppState, frame: &mut Frame, area:
+                 }
+             }
  
++            let prefix_style = if is_active {
++                Style::default().bg(p.active_row_bg)
++            } else {
++                Style::default()
++            };
              frame.render_widget(
                  Paragraph::new(Line::from(vec![
 -                    Span::styled(format!("{position:<2}"), position_style),
-+                    shortcut.map_or_else(
-+                        || Span::raw(" "),
-+                        |glyph| Span::styled(glyph, shortcut_style),
-+                    ),
-+                    Span::raw(" "),
-                     Span::styled(icon, icon_style),
+-                    Span::styled(icon, icon_style),
++                    Span::styled("  ", prefix_style),
++                    Span::styled(icon, state_style),
                  ])),
                  Rect::new(detail_content_area.x, y, detail_content_area.width, 1),
-@@ -1523,8 +1557,29 @@ fn render_agent_detail(
+             );
+@@ -1521,7 +1557,17 @@ fn render_agent_detail(
+             Style::default().fg(label_color).add_modifier(Modifier::DIM)
+         };
          let agent_style = Style::default().fg(p.overlay0).add_modifier(Modifier::DIM);
-         let state_icon = state_icon(detail.state, detail.seen, app.status_indicators, p);
+-        let state_icon = state_icon(detail.state, detail.seen, app.status_indicators, p);
++        let (state_symbol, state_style) =
++            state_icon(detail.state, detail.seen, app.status_indicators, p);
++        let state_icon = (
++            agent_shortcut_glyph(
++                index,
++                details.len(),
++                agent_state_dot_is_filled(detail.state, detail.seen),
++            )
++            .unwrap_or(state_symbol),
++            state_style,
++        );
  
-+        let shortcut = agent_shortcut_glyph(index, details.len(), is_active);
-+        let shortcut_style = if is_active {
-+            Style::default()
-+                .fg(p.active_row_bg)
-+                .bg(label_color)
-+                .add_modifier(Modifier::BOLD)
-+        } else {
-+            Style::default().fg(label_color).add_modifier(Modifier::DIM)
-+        };
-+
          for (row_index, resolved) in rows.iter().take(height as usize).enumerate() {
--            let mut spans = vec![Span::raw(if row_index == 0 { " " } else { "   " })];
-+            let mut spans = if row_index == 0 {
-+                vec![
-+                    Span::raw(" "),
-+                    shortcut.map_or_else(
-+                        || Span::raw(" "),
-+                        |glyph| Span::styled(glyph, shortcut_style),
-+                    ),
-+                    Span::raw(" "),
-+                ]
-+            } else {
-+                vec![Span::raw("   ")]
-+            };
-             spans.extend(resolved_token_spans(
-                 resolved,
-                 state_icon,
-@@ -1533,8 +1588,7 @@ fn render_agent_detail(
-                 agent_style,
-                 agent_style,
-                 p,
--                body.width
--                    .saturating_sub(if row_index == 0 { 1 } else { 3 }) as usize,
-+                body.width.saturating_sub(3) as usize,
-             ));
-             frame.render_widget(
-                 Paragraph::new(Line::from(spans)).style(row_style),
-@@ -1681,7 +1735,7 @@ mod tests {
+             let mut spans = vec![Span::raw(if row_index == 0 { " " } else { "   " })];
+@@ -1681,7 +1727,7 @@ mod tests {
          let first = row_text(buffer, body.y, 25);
          let second = row_text(buffer, body.y + 1, 25);
          assert!(first.contains("one"));
@@ -126,7 +115,7 @@ index e1088c2..858816e 100644
          assert!(!first.contains("working"));
          assert!(!second.contains("working"));
  
-@@ -1692,7 +1746,7 @@ mod tests {
+@@ -1692,7 +1738,7 @@ mod tests {
          assert!(!workspace_style.add_modifier.contains(Modifier::DIM));
          assert_eq!(workspace_style.bg, Some(app.palette.active_row_bg));
  
@@ -135,7 +124,7 @@ index e1088c2..858816e 100644
          let agent_style = buffer[(agent_x, body.y + 1)].style();
          assert_eq!(agent_style.fg, Some(app.palette.overlay0));
          assert!(agent_style.add_modifier.contains(Modifier::DIM));
-@@ -1729,8 +1783,12 @@ rows = [[{ token = "workspace", bold = false }, { token = "agent", dim = false }
+@@ -1729,8 +1775,12 @@ rows = [[{ token = "workspace", bold = false }, { token = "agent", dim = false }
          let (_, agent_area) = expanded_sidebar_sections(area, app.sidebar_section_split);
          let body = agent_panel_body_rect(agent_area, false);
          let buffer = terminal.backend().buffer();
@@ -150,7 +139,7 @@ index e1088c2..858816e 100644
  
          assert_eq!(workspace.fg, Some(app.palette.text));
          assert!(!workspace.add_modifier.contains(Modifier::BOLD));
-@@ -1968,6 +2026,18 @@ rows = [[{ token = "git_status", fg = "#123456" }]]
+@@ -1968,19 +2018,44 @@ rows = [[{ token = "git_status", fg = "#123456" }]]
              .all(|span| { span.style.fg == Some(ratatui::style::Color::Rgb(0x12, 0x34, 0x56)) }));
      }
  
@@ -169,15 +158,36 @@ index e1088c2..858816e 100644
      #[test]
      fn default_agent_row_gap_packs_rendering_and_scroll_geometry() {
          let mut app = crate::app::state::AppState::test_new();
-@@ -1981,6 +2051,7 @@ rows = [[{ token = "git_status", fg = "#123456" }]]
-             app.terminals.get_mut(&terminal_id).unwrap().detected_agent = Some(agent);
+         app.workspaces = vec![Workspace::test_new("one"), Workspace::test_new("two")];
+         app.ensure_test_terminals();
+-        for (workspace, agent) in app.workspaces.iter().zip([Agent::Pi, Agent::Claude]) {
++        for (index, (workspace, agent)) in app
++            .workspaces
++            .iter()
++            .zip([Agent::Pi, Agent::Claude])
++            .enumerate()
++        {
+             let pane_id = workspace.tabs[0].root_pane;
+             let terminal_id = workspace.tabs[0].panes[&pane_id]
+                 .attached_terminal_id
+                 .clone();
+-            app.terminals.get_mut(&terminal_id).unwrap().detected_agent = Some(agent);
++            let terminal = app.terminals.get_mut(&terminal_id).unwrap();
++            terminal.detected_agent = Some(agent);
++            if index == 0 {
++                terminal.state = AgentState::Working;
++            }
          }
-         app.sidebar_agents.rows = vec![vec![crate::config::AgentSidebarToken::Agent]];
+-        app.sidebar_agents.rows = vec![vec![crate::config::AgentSidebarToken::Agent]];
++        app.sidebar_agents.rows = vec![vec![
++            crate::config::AgentSidebarToken::StateIcon,
++            crate::config::AgentSidebarToken::Agent,
++        ]];
 +        app.active = Some(0);
          assert_eq!(app.sidebar_agents.row_gap, 0);
  
          let area = Rect::new(0, 0, 20, 5);
-@@ -1994,8 +2065,14 @@ rows = [[{ token = "git_status", fg = "#123456" }]]
+@@ -1994,8 +2069,14 @@ rows = [[{ token = "git_status", fg = "#123456" }]]
  
          assert_eq!(metrics.viewport_rows, 2);
          assert_eq!(metrics.max_offset_from_bottom, 0);
@@ -186,44 +196,42 @@ index e1088c2..858816e 100644
 +        assert_eq!(row_text(buffer, body.y, body.width), " ❶ one");
 +        assert_eq!(row_text(buffer, body.y + 1, body.width), " ② two");
 +        let focused = &agent_panel_entries(&app)[0];
-+        assert_eq!(buffer[(body.x + 1, body.y)].fg, app.palette.active_row_bg);
 +        assert_eq!(
-+            buffer[(body.x + 1, body.y)].bg,
++            buffer[(body.x + 1, body.y)].fg,
 +            state_label_color(focused.state, focused.seen, &app.palette)
 +        );
++        assert_eq!(buffer[(body.x + 1, body.y)].bg, app.palette.active_row_bg);
      }
  
      #[test]
-@@ -2303,8 +2380,8 @@ rows = [[{ token = "git_status", fg = "#123456" }]]
+@@ -2303,8 +2384,8 @@ rows = [[{ token = "git_status", fg = "#123456" }]]
              .expect("collapsed sidebar should render");
  
          let buffer = terminal.backend().buffer();
 -        assert_eq!(buffer[(detail_area.x, detail_area.y)].symbol(), "1");
 -        assert_eq!(buffer[(detail_area.x, detail_area.y + 1)].symbol(), "2");
-+        assert_eq!(buffer[(detail_area.x, detail_area.y)].symbol(), "①");
-+        assert_eq!(buffer[(detail_area.x, detail_area.y + 1)].symbol(), "②");
++        assert_eq!(buffer[(detail_area.x + 2, detail_area.y)].symbol(), "①");
++        assert_eq!(buffer[(detail_area.x + 2, detail_area.y + 1)].symbol(), "②");
      }
  
      /// Two agent panes in one workspace plus a second workspace, so the
-@@ -2367,21 +2444,26 @@ rows = [[{ token = "git_status", fg = "#123456" }]]
+@@ -2367,21 +2448,24 @@ rows = [[{ token = "git_status", fg = "#123456" }]]
          let highlighted: Vec<_> = rows
              .iter()
              .filter(|cells| {
 -                cells
 -                    .iter()
 -                    .all(|style| style.bg == Some(app.palette.active_row_bg))
-+                cells[0].fg == Some(app.palette.active_row_bg)
-+                    && cells[0].bg != Some(app.palette.active_row_bg)
-+                    && cells[1..]
-+                        .iter()
-+                        .all(|style| style.bg == Some(app.palette.active_row_bg))
++                [0, 1]
++                    .into_iter()
++                    .all(|index| cells[index].bg == Some(app.palette.active_row_bg))
              })
              .collect();
          assert_eq!(
              highlighted.len(),
              1,
 -            "only the focused agent pane should be highlighted, across the whole row"
-+            "only the focused agent pane should have an inverted badge and highlighted row"
++            "only the focused agent pane should have a highlighted row"
          );
 -        assert_eq!(highlighted[0][0].fg, Some(app.palette.text));
  
@@ -238,7 +246,16 @@ index e1088c2..858816e 100644
              .count();
          assert_eq!(
              muted, 2,
-@@ -2448,9 +2530,9 @@ rows = [[{ token = "git_status", fg = "#123456" }]]
+@@ -2399,7 +2483,7 @@ rows = [[{ token = "git_status", fg = "#123456" }]]
+         let rows = collapsed_agent_row_styles(&app, area, detail_area, 3);
+ 
+         for cells in rows {
+-            assert_eq!(cells[0].fg, Some(app.palette.overlay0));
++            assert_eq!(cells[2].fg, Some(app.palette.overlay0));
+             for style in cells {
+                 assert_ne!(style.bg, Some(app.palette.active_row_bg));
+             }
+@@ -2448,9 +2532,9 @@ rows = [[{ token = "git_status", fg = "#123456" }]]
      }
  
      #[test]
@@ -250,12 +267,15 @@ index e1088c2..858816e 100644
              .map(|idx| Workspace::test_new(&format!("workspace-{idx}")))
              .collect();
          app.ensure_test_terminals();
-@@ -2462,21 +2544,43 @@ rows = [[{ token = "git_status", fg = "#123456" }]]
+@@ -2462,21 +2546,49 @@ rows = [[{ token = "git_status", fg = "#123456" }]]
                  .clone();
              app.terminals.get_mut(&terminal_id).unwrap().detected_agent = Some(Agent::Claude);
          }
 +        app.active = Some(8);
-+        app.sidebar_agents.rows = vec![vec![crate::config::AgentSidebarToken::Agent]];
++        app.sidebar_agents.rows = vec![vec![
++            crate::config::AgentSidebarToken::StateIcon,
++            crate::config::AgentSidebarToken::Agent,
++        ]];
  
 -        let area = Rect::new(0, 0, 4, 25);
 +        let area = Rect::new(0, 0, 4, 50);
@@ -267,14 +287,17 @@ index e1088c2..858816e 100644
              .draw(|frame| render_sidebar_collapsed(&app, frame, area))
              .expect("collapsed sidebar should render");
 +        let buffer = terminal.backend().buffer();
-+        assert_eq!(buffer[(detail_area.x, detail_area.y + 7)].symbol(), "⑧");
-+        assert_eq!(buffer[(detail_area.x, detail_area.y + 8)].symbol(), " ");
-+        assert_eq!(buffer[(detail_area.x, detail_area.y + 10)].symbol(), " ");
-+        assert_eq!(buffer[(detail_area.x, detail_area.y + 11)].symbol(), "⑨");
++        assert_eq!(buffer[(detail_area.x + 2, detail_area.y + 7)].symbol(), "⑧");
++        assert_eq!(buffer[(detail_area.x + 2, detail_area.y + 8)].symbol(), "·");
 +        assert_eq!(
-+            buffer[(detail_area.x + 2, detail_area.y + 11)].symbol(),
++            buffer[(detail_area.x + 2, detail_area.y + 10)].symbol(),
 +            "·"
 +        );
++        assert_eq!(
++            buffer[(detail_area.x + 2, detail_area.y + 11)].symbol(),
++            "⑨"
++        );
++        assert_eq!(buffer[(detail_area.x, detail_area.y + 7)].symbol(), " ");
 +        assert_eq!(
 +            buffer[(detail_area.x, detail_area.y + 8)].style().bg,
 +            Some(app.palette.active_row_bg),
@@ -294,22 +317,36 @@ index e1088c2..858816e 100644
 -        assert_eq!(buffer[(detail_area.x + 1, tenth_row)].symbol(), "0");
 -        assert_eq!(buffer[(detail_area.x + 2, tenth_row)].symbol(), "·");
 +        assert_eq!(buffer[(body.x + 1, body.y + 7)].symbol(), "⑧");
-+        assert_eq!(buffer[(body.x + 1, body.y + 8)].symbol(), " ");
-+        assert_eq!(buffer[(body.x + 1, body.y + 10)].symbol(), " ");
++        assert_eq!(buffer[(body.x + 1, body.y + 8)].symbol(), "·");
++        assert_eq!(buffer[(body.x + 1, body.y + 10)].symbol(), "·");
 +        assert_eq!(buffer[(body.x + 1, body.y + 11)].symbol(), "⑨");
      }
  
      #[test]
-@@ -2523,9 +2627,9 @@ rows = [[{ token = "git_status", fg = "#123456" }]]
+@@ -2523,19 +2635,21 @@ rows = [[{ token = "git_status", fg = "#123456" }]]
              .expect("collapsed sidebar should render");
  
          let buffer = terminal.backend().buffer();
 -        assert_eq!(buffer[(detail_area.x, detail_area.y)].symbol(), "1");
 -        assert_eq!(buffer[(detail_area.x, detail_area.y + 1)].symbol(), "2");
 -        assert_eq!(buffer[(detail_area.x, detail_area.y + 2)].symbol(), "3");
-+        assert_eq!(buffer[(detail_area.x, detail_area.y)].symbol(), "①");
-+        assert_eq!(buffer[(detail_area.x, detail_area.y + 1)].symbol(), "②");
-+        assert_eq!(buffer[(detail_area.x, detail_area.y + 2)].symbol(), "③");
-         assert_eq!(buffer[(detail_area.x + 2, detail_area.y)].symbol(), "×");
+-        assert_eq!(buffer[(detail_area.x + 2, detail_area.y)].symbol(), "×");
++        assert_eq!(buffer[(detail_area.x + 2, detail_area.y)].symbol(), "❶");
++        assert_eq!(buffer[(detail_area.x + 2, detail_area.y + 1)].symbol(), "❷");
++        assert_eq!(buffer[(detail_area.x + 2, detail_area.y + 2)].symbol(), "❸");
          assert_eq!(
              buffer[(detail_area.x + 2, detail_area.y)].style().fg,
+             Some(app.palette.red)
+         );
+-        assert_eq!(buffer[(detail_area.x + 2, detail_area.y + 1)].symbol(), "✓");
+         assert_eq!(
+             buffer[(detail_area.x + 2, detail_area.y + 1)].style().fg,
+             Some(app.palette.teal)
+         );
++        assert_eq!(
++            buffer[(detail_area.x + 2, detail_area.y + 2)].style().fg,
++            Some(app.palette.yellow)
++        );
+     }
+ 
+     #[cfg(unix)]
