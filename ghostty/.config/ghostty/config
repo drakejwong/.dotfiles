@@ -3,4 +3,15 @@
 keybind = super+shift+[=unbind
 keybind = super+shift+]=unbind
 
+# Let Herdr receive Cmd+1..9 for direct agent selection.
+keybind = super+1=unbind
+keybind = super+2=unbind
+keybind = super+3=unbind
+keybind = super+4=unbind
+keybind = super+5=unbind
+keybind = super+6=unbind
+keybind = super+7=unbind
+keybind = super+8=unbind
+keybind = super+9=unbind
+
 # Leave Ctrl-S unbound so it passes directly to terminal applications such as Herdr.

@@ -71,13 +71,15 @@ config.bypass_mouse_reporting_modifiers = "SHIFT|SUPER"
 config.swallow_mouse_click_on_window_focus = false
 config.swallow_mouse_click_on_pane_focus = false
 
--- Cmd+N: focus tab N in zellij, fallback to wezterm tab
+-- Cmd+N: focus agent N in Herdr, tab N in Zellij, or WezTerm tab N.
 local function tab_key(n)
 	return {
 		key = tostring(n),
 		mods = "SUPER",
 		action = wezterm.action_callback(function(win, pane)
-			if is_zellij(pane) then
+			if is_herdr(pane) then
+				win:perform_action(wezterm.action.SendKey({ key = tostring(n), mods = "SUPER" }), pane)
+			elseif is_zellij(pane) then
 				win:perform_action(wezterm.action.SendKey({ key = tostring(n), mods = "ALT" }), pane)
 			else
 				win:perform_action(wezterm.action.ActivateTab(n - 1), pane)
@@ -107,7 +109,7 @@ end
 ------------------
 config.leader = { key = "\\", mods = "CTRL", timeout_milliseconds = 1000 }
 config.keys = {
-	-- Cmd+N: zellij tab N, fallback wezterm tab
+	-- Cmd+N: Herdr agent, Zellij tab, then WezTerm tab.
 	tab_key(1),
 	tab_key(2),
 	tab_key(3),
