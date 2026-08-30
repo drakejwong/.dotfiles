@@ -4,14 +4,24 @@ keybind = super+shift+[=unbind
 keybind = super+shift+]=unbind
 
 # Send Cmd+1..9 as Kitty keyboard sequences so Herdr receives Super+1..9.
+# Ghostty defines both logical and physical digit bindings for 1..8.
 keybind = super+1=csi:49;9u
+keybind = super+digit_1=csi:49;9u
 keybind = super+2=csi:50;9u
+keybind = super+digit_2=csi:50;9u
 keybind = super+3=csi:51;9u
+keybind = super+digit_3=csi:51;9u
 keybind = super+4=csi:52;9u
+keybind = super+digit_4=csi:52;9u
 keybind = super+5=csi:53;9u
+keybind = super+digit_5=csi:53;9u
 keybind = super+6=csi:54;9u
+keybind = super+digit_6=csi:54;9u
 keybind = super+7=csi:55;9u
+keybind = super+digit_7=csi:55;9u
 keybind = super+8=csi:56;9u
+keybind = super+digit_8=csi:56;9u
 keybind = super+9=csi:57;9u
+keybind = super+digit_9=csi:57;9u
 
 # Leave Ctrl-S unbound so it passes directly to terminal applications such as Herdr.
