@@ -57,27 +57,41 @@ local servers = {
 }
 
 local executable_cache = {}
-local function executable(command)
-  if executable_cache[command] ~= nil then
-    return executable_cache[command]
+local executable_waiters = {}
+local probe_script = [[
+path=$(command -v "$1") || exit 1
+if [ "$1" = rust-analyzer ]; then
+  rustup=$(command -v rustup || true)
+  if [ -n "$rustup" ] && [ "$path" -ef "$rustup" ]; then
+    exec "$rustup" which rust-analyzer
+  fi
+fi
+printf '%s\n' "$path"
+]]
+
+local function executable(command, cwd, callback)
+  local key = command == "rust-analyzer" and (command .. "\0" .. cwd) or command
+  if executable_cache[key] ~= nil then
+    callback(executable_cache[key])
+    return
   end
-  local path = vim.fn.exepath(command)
-  local available = path ~= ""
-  -- rustup exposes a proxy even when the component is not installed. Asking
-  -- rustup directly avoids the proxy's slow update check.
-  if available and command == "rust-analyzer" then
-    local realpath = vim.uv.fs_realpath(path) or path
-    local rustup = vim.fn.exepath("rustup")
-    local path_stat = vim.uv.fs_stat(path)
-    local rustup_stat = rustup ~= "" and vim.uv.fs_stat(rustup) or nil
-    local is_rustup_proxy = vim.fs.basename(realpath) == "rustup"
-      or (path_stat and rustup_stat and path_stat.dev == rustup_stat.dev and path_stat.ino == rustup_stat.ino)
-    if is_rustup_proxy then
-      available = vim.system({ rustup ~= "" and rustup or realpath, "which", command }, { text = true }):wait().code == 0
-    end
+  if executable_waiters[key] then
+    executable_waiters[key][#executable_waiters[key] + 1] = callback
+    return
   end
-  executable_cache[command] = available
-  return available
+  executable_waiters[key] = { callback }
+
+  vim.system({ "/bin/sh", "-c", probe_script, "nvim-lsp-probe", command }, { cwd = cwd, text = true }, function(result)
+    vim.schedule(function()
+      local path = result.code == 0 and vim.trim(result.stdout or "") or ""
+      executable_cache[key] = path ~= "" and path or false
+      local waiters = executable_waiters[key]
+      executable_waiters[key] = nil
+      for _, waiter in ipairs(waiters) do
+        waiter(executable_cache[key])
+      end
+    end)
+  end)
 end
 
 local function attach(event)
@@ -136,83 +150,111 @@ function M.setup(pack)
     callback = attach,
   })
 
-  local function configure_servers(filetype)
+  local function configure_servers(bufnr, filetype)
     local relevant = {}
     for name, server in pairs(servers) do
-      if vim.tbl_contains(server.filetypes, filetype) then
+      if not configured_servers[name] and vim.tbl_contains(server.filetypes, filetype) then
         relevant[name] = server
       end
     end
 
-    -- Prefer tsgo, then fall back to the established TypeScript server.
-    if relevant.tsgo then
-      if executable(servers.tsgo.command) then
-        relevant.ts_ls = nil
-      else
-        relevant.tsgo = nil
-      end
+    if configured_servers.tsgo then
+      relevant.ts_ls = nil
+    elseif configured_servers.ts_ls then
+      relevant.tsgo = nil
     end
-
-    -- Prefer basedpyright when both Python type checkers are available.
-    if relevant.basedpyright then
-      if executable(servers.basedpyright.command) then
-        relevant.pyright = nil
-      else
-        relevant.basedpyright = nil
-      end
+    if configured_servers.basedpyright then
+      relevant.pyright = nil
+    elseif configured_servers.pyright then
+      relevant.basedpyright = nil
     end
+    if vim.tbl_isempty(relevant) then return end
 
-    local available = {}
+    local cwd = require("config.root").get(bufnr)
+    local paths = {}
+    local remaining = vim.tbl_count(relevant)
     for name, server in pairs(relevant) do
-      if not configured_servers[name] and executable(server.command) then
-        available[name] = server
-      end
-    end
-    if vim.tbl_isempty(available) or not use_lsp() then return end
-    if filetype == "lua" and not use_lazydev() then return end
+      executable(server.command, cwd, function(path)
+        paths[name] = path
+        remaining = remaining - 1
+        if remaining ~= 0 then return end
+        if not vim.api.nvim_buf_is_valid(bufnr) or vim.bo[bufnr].filetype ~= filetype then return end
 
-    local capabilities = require("plugins.completion").capabilities()
-    local enabled = {}
-    for name, server in pairs(available) do
-      local config = vim.tbl_deep_extend(
-        "force",
-        { capabilities = capabilities, filetypes = server.filetypes },
-        server.config or {}
-      )
-      if name == "jsonls" and use_schemastore() then
-        config.settings = { json = { schemas = require("schemastore").json.schemas(), validate = { enable = true } } }
-      elseif name == "yamlls" and use_schemastore() then
-        config.settings = { yaml = { schemaStore = { enable = false, url = "" }, schemas = require("schemastore").yaml.schemas() } }
-      end
-      vim.lsp.config(name, config)
-      configured_servers[name] = true
-      enabled[#enabled + 1] = name
+        -- Prefer tsgo and basedpyright when their fallbacks are also present.
+        if relevant.tsgo and relevant.ts_ls then
+          if paths.tsgo then
+            relevant.ts_ls = nil
+          else
+            relevant.tsgo = nil
+          end
+        end
+        if relevant.basedpyright and relevant.pyright then
+          if paths.basedpyright then
+            relevant.pyright = nil
+          else
+            relevant.basedpyright = nil
+          end
+        end
+
+        local available = {}
+        for candidate, config in pairs(relevant) do
+          if paths[candidate] and not configured_servers[candidate] then
+            available[candidate] = config
+          end
+        end
+        if vim.tbl_isempty(available) or not use_lsp() then return end
+        if filetype == "lua" then use_lazydev() end
+
+        local capabilities = require("plugins.completion").capabilities()
+        local enabled = {}
+        for candidate, server_config in pairs(available) do
+          local config = vim.tbl_deep_extend(
+            "force",
+            { capabilities = capabilities, filetypes = server_config.filetypes },
+            server_config.config or {}
+          )
+          if candidate == "jsonls" and use_schemastore() then
+            config.settings = { json = { schemas = require("schemastore").json.schemas(), validate = { enable = true } } }
+          elseif candidate == "yamlls" and use_schemastore() then
+            config.settings = {
+              yaml = { schemaStore = { enable = false, url = "" }, schemas = require("schemastore").yaml.schemas() },
+            }
+          end
+          vim.lsp.config(candidate, config)
+          configured_servers[candidate] = true
+          enabled[#enabled + 1] = candidate
+        end
+        vim.lsp.enable(enabled)
+      end)
     end
-    vim.lsp.enable(enabled)
   end
 
   vim.api.nvim_create_autocmd("FileType", {
     group = vim.api.nvim_create_augroup("config_lsp_enable", { clear = true }),
     callback = function(event)
-      if vim.bo[event.buf].buftype ~= "" or event.match == "" then return end
-      local bufnr, filetype = event.buf, event.match
-
-      -- Tool discovery and server startup do not need to block the file's
-      -- first draw. This is especially important for missing executables on a
-      -- long PATH.
-      vim.schedule(function()
-        if not vim.api.nvim_buf_is_valid(bufnr) or vim.bo[bufnr].filetype ~= filetype then return end
-        configure_servers(filetype)
-      end)
+      if vim.bo[event.buf].buftype == "" and event.match ~= "" then
+        configure_servers(event.buf, event.match)
+      end
     end,
   })
 
   vim.api.nvim_create_user_command("LspTools", function()
-    local lines = { "Language server executables:" }
-    for name, server in vim.spairs(servers) do
-      lines[#lines + 1] = ("  %-34s %s"):format(name, executable(server.command) and server.command or "missing")
+    local cwd = require("config.root").get()
+    local found = {}
+    local remaining = vim.tbl_count(servers)
+    for name, server in pairs(servers) do
+      executable(server.command, cwd, function(path)
+        found[name] = path or "missing"
+        remaining = remaining - 1
+        if remaining == 0 then
+          local lines = { "Language server executables:" }
+          for server_name, server_path in vim.spairs(found) do
+            lines[#lines + 1] = ("  %-34s %s"):format(server_name, server_path)
+          end
+          vim.notify(table.concat(lines, "\n"), vim.log.levels.INFO, { title = "LSP tools" })
+        end
+      end)
     end
-    vim.notify(table.concat(lines, "\n"), vim.log.levels.INFO, { title = "LSP tools" })
   end, { desc = "Show available language servers" })
 end
 
