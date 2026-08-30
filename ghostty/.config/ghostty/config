@@ -24,4 +24,24 @@ keybind = super+digit_8=csi:56;9u
 keybind = super+9=csi:57;9u
 keybind = super+digit_9=csi:57;9u
 
+# Send Cmd+Shift+1..9 to Herdr for direct workspace selection.
+keybind = super+shift+1=csi:49:33;10u
+keybind = super+shift+digit_1=csi:49:33;10u
+keybind = super+shift+2=csi:50:64;10u
+keybind = super+shift+digit_2=csi:50:64;10u
+keybind = super+shift+3=csi:51:35;10u
+keybind = super+shift+digit_3=csi:51:35;10u
+keybind = super+shift+4=csi:52:36;10u
+keybind = super+shift+digit_4=csi:52:36;10u
+keybind = super+shift+5=csi:53:37;10u
+keybind = super+shift+digit_5=csi:53:37;10u
+keybind = super+shift+6=csi:54:94;10u
+keybind = super+shift+digit_6=csi:54:94;10u
+keybind = super+shift+7=csi:55:38;10u
+keybind = super+shift+digit_7=csi:55:38;10u
+keybind = super+shift+8=csi:56:42;10u
+keybind = super+shift+digit_8=csi:56:42;10u
+keybind = super+shift+9=csi:57:40;10u
+keybind = super+shift+digit_9=csi:57:40;10u
+
 # Leave Ctrl-S unbound so it passes directly to terminal applications such as Herdr.

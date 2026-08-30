@@ -88,6 +88,14 @@ local function tab_key(n)
 	}
 end
 
+local function workspace_key(n)
+	return {
+		key = tostring(n),
+		mods = "SHIFT|SUPER",
+		action = wezterm.action.SendKey({ key = tostring(n), mods = "SHIFT|SUPER" }),
+	}
+end
+
 -- Cmd+Shift+[/]: prev/next agent in Herdr, tab in Zellij, fallback to WezTerm tab.
 -- Send raw ESC { / ESC } bytes for Zellij; forward the original modified bracket
 -- through WezTerm's kitty keyboard protocol for Herdr.
@@ -119,6 +127,16 @@ config.keys = {
 	tab_key(7),
 	tab_key(8),
 	tab_key(9),
+	-- Cmd+Shift+N: Herdr workspace N (9 means last).
+	workspace_key(1),
+	workspace_key(2),
+	workspace_key(3),
+	workspace_key(4),
+	workspace_key(5),
+	workspace_key(6),
+	workspace_key(7),
+	workspace_key(8),
+	workspace_key(9),
 	-- Cmd+Shift+[/]: Herdr agent, Zellij tab, then WezTerm tab.
 	-- Cover every way macOS/WezTerm can represent this keypress.
 	{ key = "[", mods = "SHIFT|SUPER", action = make_tab_cycle_action("\x1b{", -1) },
