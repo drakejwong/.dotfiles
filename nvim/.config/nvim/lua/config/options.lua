@@ -5,6 +5,7 @@ vim.g.have_nerd_font = true
 vim.filetype.add({
   extension = { mdx = "mdx" },
 })
+vim.treesitter.language.register("markdown", "mdx")
 
 local opt = vim.opt
 
