@@ -6,15 +6,17 @@ local M = {
   },
 }
 
+local typescript_filetypes = { "javascript", "javascriptreact", "typescript", "typescriptreact" }
 local servers = {
-  lua_ls = { command = "lua-language-server" },
-  tsgo = { command = "tsgo" },
-  ts_ls = { command = "typescript-language-server" },
-  basedpyright = { command = "basedpyright-langserver" },
-  pyright = { command = "pyright-langserver" },
-  gopls = { command = "gopls" },
+  lua_ls = { command = "lua-language-server", filetypes = { "lua" } },
+  tsgo = { command = "tsgo", filetypes = typescript_filetypes },
+  ts_ls = { command = "typescript-language-server", filetypes = typescript_filetypes },
+  basedpyright = { command = "basedpyright-langserver", filetypes = { "python" } },
+  pyright = { command = "pyright-langserver", filetypes = { "python" } },
+  gopls = { command = "gopls", filetypes = { "go", "gomod", "gowork", "gotmpl" } },
   rust_analyzer = {
     command = "rust-analyzer",
+    filetypes = { "rust" },
     config = {
       settings = {
         ["rust-analyzer"] = {
@@ -25,16 +27,33 @@ local servers = {
       },
     },
   },
-  sqls = { command = "sqls" },
-  marksman = { command = "marksman" },
-  taplo = { command = "taplo" },
-  jsonls = { command = "vscode-json-language-server" },
-  html = { command = "vscode-html-language-server" },
-  cssls = { command = "vscode-css-language-server" },
-  tailwindcss = { command = "tailwindcss-language-server" },
-  dockerls = { command = "docker-langserver" },
-  docker_compose_language_service = { command = "docker-compose-langserver" },
-  yamlls = { command = "yaml-language-server" },
+  sqls = { command = "sqls", filetypes = { "sql", "mysql" } },
+  marksman = { command = "marksman", filetypes = { "markdown", "markdown.mdx", "mdx" } },
+  taplo = { command = "taplo", filetypes = { "toml" } },
+  jsonls = { command = "vscode-json-language-server", filetypes = { "json", "jsonc" } },
+  html = { command = "vscode-html-language-server", filetypes = { "html" } },
+  cssls = { command = "vscode-css-language-server", filetypes = { "css", "less", "scss" } },
+  tailwindcss = {
+    command = "tailwindcss-language-server",
+    filetypes = {
+      "html",
+      "markdown",
+      "mdx",
+      "css",
+      "less",
+      "scss",
+      "javascript",
+      "javascriptreact",
+      "typescript",
+      "typescriptreact",
+    },
+  },
+  dockerls = { command = "docker-langserver", filetypes = { "dockerfile" } },
+  docker_compose_language_service = { command = "docker-compose-langserver", filetypes = { "yaml.docker-compose" } },
+  yamlls = {
+    command = "yaml-language-server",
+    filetypes = { "yaml", "yaml.docker-compose", "yaml.gitlab", "yaml.helm-values" },
+  },
 }
 
 local executable_cache = {}
@@ -44,9 +63,18 @@ local function executable(command)
   end
   local path = vim.fn.exepath(command)
   local available = path ~= ""
-  -- rustup can expose a proxy even when the component is not installed.
+  -- rustup exposes a proxy even when the component is not installed. Asking
+  -- rustup directly avoids the proxy's slow update check.
   if available and command == "rust-analyzer" then
-    available = vim.system({ path, "--version" }, { text = true }):wait().code == 0
+    local realpath = vim.uv.fs_realpath(path) or path
+    local rustup = vim.fn.exepath("rustup")
+    local path_stat = vim.uv.fs_stat(path)
+    local rustup_stat = rustup ~= "" and vim.uv.fs_stat(rustup) or nil
+    local is_rustup_proxy = vim.fs.basename(realpath) == "rustup"
+      or (path_stat and rustup_stat and path_stat.dev == rustup_stat.dev and path_stat.ino == rustup_stat.ino)
+    if is_rustup_proxy then
+      available = vim.system({ rustup ~= "" and rustup or realpath, "which", command }, { text = true }):wait().code == 0
+    end
   end
   executable_cache[command] = available
   return available
@@ -87,7 +115,12 @@ local function attach(event)
 end
 
 function M.setup(pack)
-  local has_enabled_server = false
+  local configured_servers = {}
+  local use_lsp = pack.use("lsp", "nvim-lspconfig")
+  local use_lazydev = pack.use("lazydev", "lazydev.nvim", function()
+    require("lazydev").setup()
+  end)
+  local use_schemastore = pack.use("schemastore", "SchemaStore.nvim")
 
   vim.diagnostic.config({
     severity_sort = true,
@@ -103,53 +136,73 @@ function M.setup(pack)
     callback = attach,
   })
 
-  pack.event("lsp", { "blink.cmp", "nvim-lspconfig", "lazydev.nvim", "SchemaStore.nvim" }, "FileType", function()
-    require("lazydev").setup()
-    local capabilities = require("plugins.completion").capabilities()
+  local function configure_servers(filetype)
+    local relevant = {}
+    for name, server in pairs(servers) do
+      if vim.tbl_contains(server.filetypes, filetype) then
+        relevant[name] = server
+      end
+    end
 
     -- Prefer tsgo, then fall back to the established TypeScript server.
-    if executable(servers.tsgo.command) then
-      servers.ts_ls = nil
-    else
-      servers.tsgo = nil
+    if relevant.tsgo then
+      if executable(servers.tsgo.command) then
+        relevant.ts_ls = nil
+      else
+        relevant.tsgo = nil
+      end
     end
 
     -- Prefer basedpyright when both Python type checkers are available.
-    if executable(servers.basedpyright.command) then
-      servers.pyright = nil
-    else
-      servers.basedpyright = nil
-    end
-
-    for name, server in pairs(servers) do
-      if executable(server.command) then
-        local config = vim.tbl_deep_extend("force", { capabilities = capabilities }, server.config or {})
-        if name == "jsonls" then
-          config.settings = { json = { schemas = require("schemastore").json.schemas(), validate = { enable = true } } }
-        elseif name == "yamlls" then
-          config.settings = { yaml = { schemaStore = { enable = false, url = "" }, schemas = require("schemastore").yaml.schemas() } }
-        end
-        vim.lsp.config(name, config)
-        vim.lsp.enable(name)
-        has_enabled_server = true
+    if relevant.basedpyright then
+      if executable(servers.basedpyright.command) then
+        relevant.pyright = nil
+      else
+        relevant.basedpyright = nil
       end
     end
-  end, {
-    condition = function(event)
-      return vim.bo[event.buf].buftype == "" and event.match ~= ""
-    end,
+
+    local available = {}
+    for name, server in pairs(relevant) do
+      if not configured_servers[name] and executable(server.command) then
+        available[name] = server
+      end
+    end
+    if vim.tbl_isempty(available) or not use_lsp() then return end
+    if filetype == "lua" and not use_lazydev() then return end
+
+    local capabilities = require("plugins.completion").capabilities()
+    local enabled = {}
+    for name, server in pairs(available) do
+      local config = vim.tbl_deep_extend(
+        "force",
+        { capabilities = capabilities, filetypes = server.filetypes },
+        server.config or {}
+      )
+      if name == "jsonls" and use_schemastore() then
+        config.settings = { json = { schemas = require("schemastore").json.schemas(), validate = { enable = true } } }
+      elseif name == "yamlls" and use_schemastore() then
+        config.settings = { yaml = { schemaStore = { enable = false, url = "" }, schemas = require("schemastore").yaml.schemas() } }
+      end
+      vim.lsp.config(name, config)
+      configured_servers[name] = true
+      enabled[#enabled + 1] = name
+    end
+    vim.lsp.enable(enabled)
+  end
+
+  vim.api.nvim_create_autocmd("FileType", {
+    group = vim.api.nvim_create_augroup("config_lsp_enable", { clear = true }),
     callback = function(event)
-      -- LSPs were enabled from inside this buffer's first FileType event.
-      -- Run only Neovim's native activation group once that event completes.
+      if vim.bo[event.buf].buftype ~= "" or event.match == "" then return end
+      local bufnr, filetype = event.buf, event.match
+
+      -- Tool discovery and server startup do not need to block the file's
+      -- first draw. This is especially important for missing executables on a
+      -- long PATH.
       vim.schedule(function()
-        if has_enabled_server and vim.api.nvim_buf_is_valid(event.buf) then
-          local group = vim.api.nvim_create_augroup("nvim.lsp.enable", { clear = false })
-          vim.api.nvim_exec_autocmds("FileType", {
-            group = group,
-            buffer = event.buf,
-            modeline = false,
-          })
-        end
+        if not vim.api.nvim_buf_is_valid(bufnr) or vim.bo[bufnr].filetype ~= filetype then return end
+        configure_servers(filetype)
       end)
     end,
   })
