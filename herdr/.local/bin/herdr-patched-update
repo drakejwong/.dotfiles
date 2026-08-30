@@ -59,6 +59,7 @@ patch_files=(
   "$patch_dir/pane-read-on-focus.patch"
   "$patch_dir/agent-number-shortcuts.patch"
   "$patch_dir/sidebar-agent-workspaces.patch"
+  "$patch_dir/agent-shortcut-badges.patch"
 )
 
 for patch_file in "${patch_files[@]}"; do
@@ -123,7 +124,9 @@ if $run_tests; then
       cargo test --bin herdr workspace_shortcut_nine_targets_last_visible_workspace && \
       cargo test --bin herdr runtime_rename_modal_renames_detected_agent_identity && \
       cargo test --bin herdr agent_panel_falls_back_to_workspace_label_without_custom_agent_name && \
-      cargo test --bin herdr agent_context_menu_offers_direct_rename'
+      cargo test --bin herdr agent_context_menu_offers_direct_rename && \
+      cargo test --bin herdr agent_shortcuts_favor_real_positions_and_reserve_nine_for_last && \
+      cargo test --bin herdr default_agent_row_gap_packs_rendering_and_scroll_geometry'
 fi
 
 echo "Building the Nix release package..."
