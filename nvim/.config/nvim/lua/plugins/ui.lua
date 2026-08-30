@@ -17,6 +17,7 @@ function M.setup(pack)
       dashboard = {
         enabled = true,
         preset = {
+          header = require("plugins.dashboard").header(),
           keys = {
             { icon = " ", key = "f", desc = "Find file", action = function() require("plugins.fzf").files() end },
             { icon = " ", key = "n", desc = "New file", action = ":ene | startinsert" },
