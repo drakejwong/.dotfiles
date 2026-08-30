@@ -12,6 +12,8 @@ local function run(method, opts)
   end
 end
 
+M.run = run
+
 function M.files(opts) run("files", opts) end
 function M.grep(opts) run("live_grep", opts) end
 function M.oldfiles(opts) run("oldfiles", opts) end

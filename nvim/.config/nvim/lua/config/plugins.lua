@@ -2,8 +2,11 @@ local pack = require("config.pack")
 
 local modules = {
   require("plugins.editing"),
+  require("plugins.completion"),
   require("plugins.fzf"),
   require("plugins.git"),
+  require("plugins.lsp"),
+  require("plugins.tools"),
   require("plugins.treesitter"),
   require("plugins.ui"),
 }

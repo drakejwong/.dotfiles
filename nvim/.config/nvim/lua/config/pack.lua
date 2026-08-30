@@ -54,16 +54,21 @@ end
 function M.event(id, plugins, events, configure, opts)
   opts = opts or {}
   local use = M.use(id, plugins, configure)
+  local group = vim.api.nvim_create_augroup("pack_" .. id, { clear = true })
   vim.api.nvim_create_autocmd(events, {
-    group = vim.api.nvim_create_augroup("pack_" .. id, { clear = true }),
+    group = group,
     pattern = opts.pattern,
-    once = opts.once ~= false,
     callback = function(event)
       if opts.condition and not opts.condition(event) then
         return
       end
-      if use() and opts.callback then
-        opts.callback(event)
+      if use() then
+        if opts.callback then
+          opts.callback(event)
+        end
+        if opts.once ~= false then
+          vim.api.nvim_clear_autocmds({ group = group })
+        end
       end
     end,
   })
