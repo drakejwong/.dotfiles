@@ -1,0 +1,110 @@
+diff --git a/src/app/input/navigate.rs b/src/app/input/navigate.rs
+index a0e206d..089751d 100644
+--- a/src/app/input/navigate.rs
++++ b/src/app/input/navigate.rs
+@@ -238,9 +238,9 @@ impl App {
+                 }
+             }
+             NavigateAction::FocusAgent(idx) => {
+-                if let Some((ws_idx, pane_id)) = self.agent_entry_target(idx) {
++                if let Some((target_idx, ws_idx, pane_id)) = self.agent_entry_target(idx) {
+                     self.focus_pane_internal_via_api(ws_idx, pane_id);
+-                    self.state.ensure_agent_panel_entry_visible(idx);
++                    self.state.ensure_agent_panel_entry_visible(target_idx);
+                     leave_navigate_mode(&mut self.state);
+                 }
+             }
+@@ -768,10 +768,14 @@ impl App {
+         Some((ws.active_tab as isize + delta).rem_euclid(ws.tabs.len() as isize) as usize)
+     }
+ 
+-    fn agent_entry_target(&self, idx: usize) -> Option<(usize, crate::layout::PaneId)> {
++    fn agent_entry_target(
++        &self,
++        shortcut_idx: usize,
++    ) -> Option<(usize, usize, crate::layout::PaneId)> {
+         let entries = crate::ui::agent_panel_entries(&self.state);
+-        let target = entries.get(idx)?;
+-        Some((target.ws_idx, target.pane_id))
++        let target_idx = numbered_agent_target_index(shortcut_idx, entries.len())?;
++        let target = entries.get(target_idx)?;
++        Some((target_idx, target.ws_idx, target.pane_id))
+     }
+ 
+     fn relative_agent_entry(&self, forward: bool) -> Option<(usize, usize, crate::layout::PaneId)> {
+@@ -1525,6 +1529,18 @@ fn indexed_navigation_action(
+     None
+ }
+ 
++fn numbered_agent_target_index(shortcut_idx: usize, agent_count: usize) -> Option<usize> {
++    if agent_count == 0 {
++        return None;
++    }
++    let target_idx = if shortcut_idx == 8 {
++        agent_count - 1
++    } else {
++        shortcut_idx
++    };
++    (target_idx < agent_count).then_some(target_idx)
++}
++
+ fn action_matches(
+     bindings: &crate::config::ActionKeybinds,
+     key: &TerminalKey,
+@@ -1730,8 +1746,11 @@ pub(super) fn execute_navigate_action_in_context(
+             }
+         }
+         NavigateAction::FocusAgent(idx) => {
+-            if state.focus_agent_entry(idx) {
+-                leave_navigate_mode(state);
++            let agent_count = crate::ui::agent_panel_entries(state).len();
++            if let Some(target_idx) = numbered_agent_target_index(idx, agent_count) {
++                if state.focus_agent_entry(target_idx) {
++                    leave_navigate_mode(state);
++                }
+             }
+         }
+         NavigateAction::WorkspacePicker => {
+@@ -2053,6 +2072,16 @@ mod tests {
+         workspace::Workspace,
+     };
+ 
++    #[test]
++    fn numbered_agent_shortcuts_map_nine_to_last_agent() {
++        assert_eq!(numbered_agent_target_index(0, 12), Some(0));
++        assert_eq!(numbered_agent_target_index(7, 12), Some(7));
++        assert_eq!(numbered_agent_target_index(8, 12), Some(11));
++        assert_eq!(numbered_agent_target_index(8, 8), Some(7));
++        assert_eq!(numbered_agent_target_index(7, 7), None);
++        assert_eq!(numbered_agent_target_index(8, 0), None);
++    }
++
+     fn mark_worktree_space_member(state: &mut AppState, ws_idx: usize, key: &str) {
+         state.workspaces[ws_idx].worktree_space = Some(crate::workspace::WorktreeSpaceMembership {
+             key: key.into(),
+diff --git a/src/config/model.rs b/src/config/model.rs
+index c10cd73..14db2fb 100644
+--- a/src/config/model.rs
++++ b/src/config/model.rs
+@@ -386,7 +386,7 @@ pub struct KeysConfig {
+     pub previous_agent: BindingConfig,
+     /// Focus the next agent shown in the agent panel. Unset by default.
+     pub next_agent: BindingConfig,
+-    /// Focus an agent by index 1-9. Unset by default.
++    /// Focus agents 1-8 by index; 9 focuses the last agent. Unset by default.
+     pub focus_agent: BindingConfig,
+     /// Local-client shortcut that sends a clipboard image to a remote Herdr session. Default: "ctrl+v".
+     pub remote_image_paste: String,
+diff --git a/src/main.rs b/src/main.rs
+index a6ba1c0..6dcfcfc 100644
+--- a/src/main.rs
++++ b/src/main.rs
+@@ -201,7 +201,7 @@ const DEFAULT_CONFIG: &str = r##"# herdr configuration
+ # next_workspace = ""     # optional, unset by default
+ # previous_agent = ""     # optional, unset by default
+ # next_agent = ""         # optional, unset by default
+-# focus_agent = ""        # optional indexed binding, e.g. "prefix+alt+1..9"
++# focus_agent = ""        # 1-8 focus by index; 9 focuses the last agent
+ # remote_image_paste = "ctrl+v" # only active in herdr --remote; empty disables raw-key image paste
+ # new_tab = "prefix+c"
+ # rename_tab = "prefix+shift+t"

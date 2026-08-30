@@ -57,6 +57,7 @@ patch_dir="$script_dir/../share/herdr-patched"
 patch_files=(
   "$patch_dir/double-prefix-action.patch"
   "$patch_dir/pane-read-on-focus.patch"
+  "$patch_dir/agent-number-shortcuts.patch"
 )
 
 for patch_file in "${patch_files[@]}"; do
@@ -116,7 +117,8 @@ if $run_tests; then
       cargo test --bin herdr double_prefix && \
       cargo test --bin herdr seen && \
       cargo test --bin herdr last_pane_jumps_across_workspaces_and_tabs && \
-      cargo test --bin herdr focus_agent_entry_succeeds_for_already_focused_agent'
+      cargo test --bin herdr focus_agent_entry_succeeds_for_already_focused_agent && \
+      cargo test --bin herdr numbered_agent_shortcuts_map_nine_to_last_agent'
 fi
 
 echo "Building the Nix release package..."
