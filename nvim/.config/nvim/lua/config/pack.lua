@@ -8,7 +8,14 @@ local function names(value)
 end
 
 function M.add(specs)
-  local ok, err = pcall(vim.pack.add, specs, { confirm = false, load = false })
+  local ok, err = pcall(vim.pack.add, specs, {
+    confirm = false,
+    -- Do not use `load = false` here. During init that behaves like
+    -- `:packadd!`, so Neovim's later startup scan still sources plugin files.
+    -- A no-op loader keeps packages off runtimepath until M.load() calls
+    -- `:packadd` for an explicit trigger.
+    load = function() end,
+  })
   if not ok then
     vim.schedule(function()
       vim.notify("Plugin installation failed:\n" .. err, vim.log.levels.ERROR)

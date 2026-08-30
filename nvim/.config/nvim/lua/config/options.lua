@@ -1,6 +1,8 @@
 vim.g.mapleader = " "
 vim.g.maplocalleader = "\\"
 vim.g.have_nerd_font = true
+-- The Nix fzf package ships a Vim plugin; fzf-lua only needs its executable.
+vim.g.loaded_fzf = 1
 
 vim.filetype.add({
   extension = { mdx = "mdx" },
