@@ -4,8 +4,6 @@ local M = {
     { src = "https://github.com/folke/tokyonight.nvim" },
     { src = "https://github.com/nvim-lualine/lualine.nvim" },
     { src = "https://github.com/akinsho/bufferline.nvim" },
-    { src = "https://github.com/folke/noice.nvim" },
-    { src = "https://github.com/MunifTanjim/nui.nvim" },
   },
 }
 
@@ -38,7 +36,12 @@ function M.setup(pack)
       explorer = { enabled = true },
       indent = { enabled = true },
       input = { enabled = true },
-      notifier = { enabled = true },
+      notifier = {
+        enabled = true,
+        timeout = 3000,
+        height = { min = 1, max = 0.25 },
+        style = "compact",
+      },
       picker = { enabled = true },
       quickfile = { enabled = true },
       scope = { enabled = true },
@@ -65,6 +68,12 @@ function M.setup(pack)
   vim.keymap.set("n", "<leader>gg", function()
     if use_snacks() then Snacks.terminal("jj", { cwd = require("config.root").get() }) end
   end, { desc = "Jujutsu terminal" })
+  vim.keymap.set("n", "<leader>sn", function()
+    if use_snacks() then Snacks.notifier.show_history() end
+  end, { desc = "Notification history" })
+  vim.keymap.set("n", "<leader>un", function()
+    if use_snacks() then Snacks.notifier.hide() end
+  end, { desc = "Dismiss notifications" })
 
   pack.defer("lualine", { "mini.nvim", "lualine.nvim" }, function()
     require("lualine").setup({
@@ -88,18 +97,6 @@ function M.setup(pack)
         close_command = function(buf) Snacks.bufdelete(buf) end,
         right_mouse_command = function(buf) Snacks.bufdelete(buf) end,
       },
-    })
-  end)
-
-  pack.defer("noice", { "nui.nvim", "snacks.nvim", "noice.nvim" }, function()
-    require("noice").setup({
-      lsp = {
-        override = {
-          ["vim.lsp.util.convert_input_to_markdown_lines"] = true,
-          ["vim.lsp.util.stylize_markdown"] = true,
-        },
-      },
-      presets = { bottom_search = true, command_palette = true, long_message_to_split = true },
     })
   end)
 end
