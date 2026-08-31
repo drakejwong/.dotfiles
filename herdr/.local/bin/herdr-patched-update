@@ -2,181 +2,183 @@
 set -euo pipefail
 
 usage() {
-  cat <<'EOF'
-Usage: herdr-patched-update [--build-only] [--skip-tests] [TAG]
+	cat <<'EOF'
+Usage: herdr-patched-update [--build-only] [--skip-tests] [REF]
 
-Build the latest stable Herdr release (or TAG) with the maintained
-behavior patches, then install it through the Nix profile.
+Build Herdr from upstream master (or REF) with the maintained master patch
+set, then install it to ~/.local/bin.
 
 Options:
-  --build-only  Build and verify without changing the Nix profile.
-  --skip-tests  Skip focused Rust tests (the Nix release build still runs).
+  --build-only  Build and verify without installing the binary.
+  --skip-tests  Skip formatting and focused Rust tests.
   -h, --help    Show this help.
 EOF
 }
 
 build_only=false
 run_tests=true
-tag=""
+ref=master
+ref_set=false
 while (($#)); do
-  case "$1" in
-    --build-only)
-      build_only=true
-      ;;
-    --skip-tests)
-      run_tests=false
-      ;;
-    -h|--help)
-      usage
-      exit 0
-      ;;
-    -*)
-      echo "unknown option: $1" >&2
-      usage >&2
-      exit 2
-      ;;
-    *)
-      if [[ -n "$tag" ]]; then
-        echo "only one release tag may be specified" >&2
-        exit 2
-      fi
-      tag="$1"
-      ;;
-  esac
-  shift
+	case "$1" in
+	--build-only)
+		build_only=true
+		;;
+	--skip-tests)
+		run_tests=false
+		;;
+	-h | --help)
+		usage
+		exit 0
+		;;
+	-*)
+		echo "unknown option: $1" >&2
+		usage >&2
+		exit 2
+		;;
+	*)
+		if $ref_set; then
+			echo "only one Git ref may be specified" >&2
+			exit 2
+		fi
+		ref=$1
+		ref_set=true
+		;;
+	esac
+	shift
 done
 
+if [[ ! $ref =~ ^[0-9A-Za-z][0-9A-Za-z._/-]*$ || $ref == *..* ]]; then
+	echo "refusing invalid Git ref: $ref" >&2
+	exit 1
+fi
+
 source_path=${BASH_SOURCE[0]}
-while [[ -L "$source_path" ]]; do
-  source_dir=$(cd -P "$(dirname "$source_path")" >/dev/null 2>&1 && pwd)
-  source_path=$(readlink "$source_path")
-  [[ "$source_path" = /* ]] || source_path="$source_dir/$source_path"
+while [[ -L $source_path ]]; do
+	source_dir=$(cd -P "$(dirname "$source_path")" >/dev/null 2>&1 && pwd)
+	source_path=$(readlink "$source_path")
+	[[ $source_path = /* ]] || source_path="$source_dir/$source_path"
 done
 script_dir=$(cd -P "$(dirname "$source_path")" >/dev/null 2>&1 && pwd)
 patch_dir="$script_dir/../share/herdr-patched"
 patch_files=(
-  "$patch_dir/double-prefix-action.patch"
-  "$patch_dir/pane-read-on-focus.patch"
-  "$patch_dir/agent-number-shortcuts.patch"
-  "$patch_dir/sidebar-agent-workspaces.patch"
-  "$patch_dir/agent-shortcut-badges.patch"
+	"$patch_dir/double-prefix-action-master.patch"
+	"$patch_dir/pane-read-on-focus-master.patch"
+	"$patch_dir/agent-number-shortcuts-master.patch"
+	"$patch_dir/sidebar-agent-workspaces-master.patch"
+	"$patch_dir/agent-shortcut-badges-master.patch"
 )
 
 for patch_file in "${patch_files[@]}"; do
-  if [[ ! -r "$patch_file" ]]; then
-    echo "missing Herdr patch: $patch_file" >&2
-    exit 1
-  fi
+	if [[ ! -r $patch_file ]]; then
+		echo "missing Herdr patch: $patch_file" >&2
+		exit 1
+	fi
 done
 
-if [[ -z "$tag" ]]; then
-  echo "Resolving the latest stable Herdr release..."
-  tag=$(
-    /usr/bin/curl --fail --silent --show-error --location \
-      --header 'Accept: application/vnd.github+json' \
-      --header 'User-Agent: herdr-patched-update' \
-      https://api.github.com/repos/herdrdev/herdr/releases/latest \
-      | /usr/bin/python3 -c 'import json, sys; print(json.load(sys.stdin)["tag_name"])'
-  )
-fi
+for tool in cargo rustc cmake ninja; do
+	if ! command -v "$tool" >/dev/null 2>&1; then
+		echo "missing build dependency: $tool (install it with mise)" >&2
+		exit 1
+	fi
+done
 
-if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
-  echo "refusing invalid release tag: $tag" >&2
-  exit 1
+if [[ $(uname -s) == Darwin ]]; then
+	if command -v brew >/dev/null 2>&1; then
+		zig_prefix=$(brew --prefix zig@0.15 2>/dev/null || true)
+	fi
+	if [[ -n ${zig_prefix:-} && -x $zig_prefix/bin/zig ]]; then
+		ZIG="$zig_prefix/bin/zig"
+	elif command -v zig >/dev/null 2>&1; then
+		ZIG=$(command -v zig)
+	else
+		echo "missing build dependency: Zig 0.15" >&2
+		exit 1
+	fi
+	export ZIG
+elif ! command -v zig >/dev/null 2>&1; then
+	echo "missing build dependency: zig" >&2
+	exit 1
 fi
 
 work_dir=$(mktemp -d "${TMPDIR:-/tmp}/herdr-patched.XXXXXX")
 trap 'rm -rf "$work_dir"' EXIT
 source_dir="$work_dir/herdr"
 
-echo "Fetching Herdr $tag..."
-git clone --quiet --depth 1 --branch "$tag" https://github.com/herdrdev/herdr.git "$source_dir"
+echo "Fetching Herdr $ref..."
+git clone --quiet https://github.com/herdrdev/herdr.git "$source_dir"
 cd "$source_dir"
+git -c advice.detachedHead=false checkout --quiet "$ref"
 
 for patch_file in "${patch_files[@]}"; do
-  patch_name=$(basename "$patch_file")
-  if git apply --check "$patch_file"; then
-    git apply "$patch_file"
-    echo "Applied $patch_name."
-  elif git apply --reverse --check "$patch_file"; then
-    echo "$patch_name is already present; no reapplication needed."
-  else
-    echo "$patch_name does not apply cleanly to Herdr $tag." >&2
-    echo "Nothing was installed. Port and retest the patch before upgrading." >&2
-    exit 1
-  fi
+	patch_name=$(basename "$patch_file")
+	if git apply --check "$patch_file"; then
+		git apply "$patch_file"
+		echo "Applied $patch_name."
+	elif git apply --3way --check "$patch_file"; then
+		git apply --3way "$patch_file"
+		echo "Applied $patch_name with a three-way merge."
+	elif git apply --reverse --check "$patch_file"; then
+		echo "$patch_name is already present; no reapplication needed."
+	else
+		echo "$patch_name does not apply cleanly to Herdr $ref." >&2
+		echo "Nothing was installed. Port and retest the patch before upgrading." >&2
+		exit 1
+	fi
 done
 
 git diff --check
-nix_args=(--extra-experimental-features 'nix-command flakes')
+
+cache_home=${XDG_CACHE_HOME:-}
+if [[ -z $cache_home ]]; then
+	if [[ $(uname -s) == Darwin ]]; then
+		cache_home="$HOME/Library/Caches"
+	else
+		cache_home="$HOME/.cache"
+	fi
+fi
+cargo_target_dir="$cache_home/herdr-patched/cargo-target"
+mkdir -p "$cargo_target_dir"
+export CARGO_TARGET_DIR="$cargo_target_dir"
+export LIBGHOSTTY_VT_OPTIMIZE=ReleaseFast
+export LIBGHOSTTY_VT_SIMD=true
 
 if $run_tests; then
-  echo "Running formatting and focused patch tests..."
-  cargo_target_dir="${XDG_CACHE_HOME:-$HOME/.cache}/herdr-patched/cargo-target"
-  mkdir -p "$cargo_target_dir"
-  nix "${nix_args[@]}" develop --command env CARGO_TARGET_DIR="$cargo_target_dir" \
-    bash -lc 'cargo fmt --check && \
-      cargo test --bin herdr double_prefix && \
-      cargo test --bin herdr seen && \
-      cargo test --bin herdr last_pane_jumps_across_workspaces_and_tabs && \
-      cargo test --bin herdr focus_agent_entry_succeeds_for_already_focused_agent && \
-      cargo test --bin herdr numbered_agent_shortcuts_map_nine_to_last_agent && \
-      cargo test --bin herdr workspace_shortcut_nine_targets_last_visible_workspace && \
-      cargo test --bin herdr runtime_rename_modal_renames_detected_agent_identity && \
-      cargo test --bin herdr agent_panel_falls_back_to_workspace_label_without_custom_agent_name && \
-      cargo test --bin herdr agent_context_menu_offers_direct_rename && \
-      cargo test --bin herdr agent_shortcuts_favor_real_positions_and_reserve_nine_for_last && \
-      cargo test --bin herdr default_agent_row_gap_packs_rendering_and_scroll_geometry'
+	echo "Running formatting and focused patch tests..."
+	cargo fmt --check
+	cargo test --bin herdr double_prefix
+	cargo test --bin herdr seen
+	cargo test --bin herdr last_pane_jumps_across_workspaces_and_tabs
+	cargo test --bin herdr focus_agent_entry_succeeds_for_already_focused_agent
+	cargo test --bin herdr numbered_agent_shortcuts_map_nine_to_last_agent
+	cargo test --bin herdr workspace_shortcut_nine_targets_last_visible_workspace
+	cargo test --bin herdr runtime_rename_modal_renames_detected_agent_identity
+	cargo test --bin herdr agent_panel_falls_back_to_workspace_label_without_custom_agent_name
+	cargo test --bin herdr agent_context_menu_offers_direct_rename
+	cargo test --bin herdr agent_shortcuts_favor_real_positions_and_reserve_nine_for_last
+	cargo test --bin herdr default_agent_row_gap_packs_rendering_and_scroll_geometry
 fi
 
-echo "Building the Nix release package..."
-out_path=$(nix "${nix_args[@]}" build ".#herdr" --no-link --print-out-paths)
-if [[ ! -x "$out_path/bin/herdr" ]]; then
-  echo "Nix build did not produce an executable Herdr binary" >&2
-  exit 1
+echo "Building the release binary from source..."
+cargo build --release --locked
+built_binary="$CARGO_TARGET_DIR/release/herdr"
+if [[ ! -x $built_binary ]]; then
+	echo "Cargo did not produce an executable Herdr binary" >&2
+	exit 1
 fi
-"$out_path/bin/herdr" --version
+"$built_binary" --version
 
 if $build_only; then
-  echo "Verified build: $out_path"
-  exit 0
+	echo "Verified build: $built_binary"
+	exit 0
 fi
 
-profile_json=$(nix "${nix_args[@]}" profile list --json)
-old_profile_names=$(
-  /usr/bin/python3 -c '
-import json, os, sys
-for name, element in json.load(sys.stdin).get("elements", {}).items():
-    if any("-herdr-" in os.path.basename(path) for path in element.get("storePaths", [])):
-        print(name)
-' <<<"$profile_json"
-)
-old_profile_count=$(printf '%s\n' "$old_profile_names" | grep -c . || true)
+install_dir="$HOME/.local/bin"
+mkdir -p "$install_dir"
+temporary_binary="$install_dir/.herdr.new.$$"
+cp "$built_binary" "$temporary_binary"
+chmod 0755 "$temporary_binary"
+mv -f "$temporary_binary" "$install_dir/herdr"
 
-if ((old_profile_count > 1)); then
-  echo "multiple Nix-profile Herdr entries found; refusing an ambiguous replacement:" >&2
-  printf '  %s\n' "$old_profile_names" >&2
-  exit 1
-fi
-
-if ((old_profile_count == 1)); then
-  old_name=$old_profile_names
-  echo "Replacing Nix profile entry $old_name..."
-  nix "${nix_args[@]}" profile remove "$old_name"
-  if ! nix "${nix_args[@]}" profile install "$out_path"; then
-    echo "Install failed; rolling the Nix profile back to its prior generation." >&2
-    nix "${nix_args[@]}" profile rollback
-    exit 1
-  fi
-else
-  echo "Installing Herdr into the Nix profile..."
-  nix "${nix_args[@]}" profile install "$out_path"
-fi
-
-installed=$(command -v herdr || true)
-echo "Installed patched Herdr $tag from $out_path"
-if [[ "$installed" != "$HOME/.nix-profile/bin/herdr" ]]; then
-  echo "Note: this shell currently resolves herdr as ${installed:-<not found>}." >&2
-  echo "Ensure $HOME/.nix-profile/bin precedes other Herdr installs in PATH." >&2
-fi
+echo "Installed patched Herdr $ref to $install_dir/herdr"
 echo "Already-running Herdr servers keep their current binary until restarted."
