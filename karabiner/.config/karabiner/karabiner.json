@@ -1,18 +1,30 @@
 {
     "profiles": [
         {
+            "complex_modifications": {
+                "rules": [
+                    {
+                        "description": "Use non-natural vertical scrolling on external pointing devices",
+                        "manipulators": [
+                            {
+                                "conditions": [
+                                    {
+                                        "identifiers": [{ "is_pointing_device": true }],
+                                        "type": "device_if"
+                                    },
+                                    {
+                                        "identifiers": [{ "product_id": 0, "vendor_id": 0 }],
+                                        "type": "device_unless"
+                                    }
+                                ],
+                                "flip": ["vertical_wheel"],
+                                "type": "mouse_basic"
+                            }
+                        ]
+                    }
+                ]
+            },
             "devices": [
-                {
-                    "identifiers": {
-                        "is_keyboard": true,
-                        "is_pointing_device": true,
-                        "product_id": 45091,
-                        "vendor_id": 1133
-                    },
-                    "ignore": false,
-                    "mouse_flip_horizontal_wheel": true,
-                    "mouse_flip_vertical_wheel": true
-                },
                 {
                     "disable_built_in_keyboard_if_exists": true,
                     "identifiers": {
@@ -62,6 +74,7 @@
                     ]
                 }
             ],
+            "ignore_pointing_device_events_by_default": false,
             "name": "Default profile",
             "selected": true,
             "simple_modifications": [
