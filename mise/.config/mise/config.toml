@@ -1,0 +1,28 @@
+[tools]
+bat = "latest"
+cmake = "latest"
+delta = "latest"
+eza = "latest"
+fd = "latest"
+fzf = "latest"
+gh = "latest"
+git-lfs = "latest"
+jj = "latest"
+lazygit = "latest"
+lua-language-server = "latest"
+neovim = "latest"
+ninja = "latest"
+node = "lts"
+"npm:@earendil-works/pi-coding-agent" = "latest"
+pnpm = "latest"
+python = "latest"
+ripgrep = "latest"
+rust = "1.96.1"
+shellcheck = "latest"
+shfmt = "latest"
+stylua = "latest"
+tree-sitter = "latest"
+zoxide = "latest"
+
+[settings]
+idiomatic_version_file_enable_tools = ["node"]
