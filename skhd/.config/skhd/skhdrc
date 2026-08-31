@@ -1,11 +1,11 @@
 # TODO: for hoppin and movin, you gotta make sure it moves the focus/window to
 # the closest edge of the display you just moved to
 
-# restart yabai launch agent
-ctrl + alt + cmd - r : launchctl kickstart -k "gui/${UID}/com.yabai"
+# restart the yabai launch agent
+ctrl + alt + cmd - r : yabai --restart-service
 
 # open terminal
-cmd - return : /Applications/Kitty.app/Contents/MacOS/kitty --single-instance -d ~ &> /dev/null
+cmd - return : open -na Ghostty
 
 # open mpv with url from clipboard
 # shift + cmd - m : mpv $(pbpaste)
