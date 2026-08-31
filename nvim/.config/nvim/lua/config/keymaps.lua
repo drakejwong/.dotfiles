@@ -8,20 +8,16 @@ map({ "n", "x" }, "j", "v:count == 0 ? 'gj' : 'j'", { expr = true, desc = "Down"
 map({ "n", "x" }, "k", "v:count == 0 ? 'gk' : 'k'", { expr = true, desc = "Up" })
 
 local directions = {
-  h = { wincmd = "h", zellij = "left" },
-  j = { wincmd = "j", zellij = "down" },
-  k = { wincmd = "k", zellij = "up" },
-  l = { wincmd = "l", zellij = "right" },
+  h = { wincmd = "h", name = "left" },
+  j = { wincmd = "j", name = "down" },
+  k = { wincmd = "k", name = "up" },
+  l = { wincmd = "l", name = "right" },
 }
 
 for key, direction in pairs(directions) do
   map("n", "<C-" .. key .. ">", function()
-    local window = vim.api.nvim_get_current_win()
     vim.cmd.wincmd(direction.wincmd)
-    if vim.api.nvim_get_current_win() == window and vim.env.ZELLIJ then
-      vim.system({ "zellij", "action", "move-focus", direction.zellij })
-    end
-  end, { desc = "Focus " .. direction.zellij })
+  end, { desc = "Focus " .. direction.name })
 end
 
 map("n", "<C-Up>", "<cmd>resize +2<cr>", { desc = "Increase window height" })
