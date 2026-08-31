@@ -13,6 +13,7 @@ local typescript_servers = {
   vtsls = { command = "vtsls", probe = "project" },
   ts_ls = { command = "typescript-language-server", probe = "project" },
 }
+local typescript_root_markers = { "package-lock.json", "yarn.lock", "pnpm-lock.yaml", "bun.lockb", "bun.lock" }
 local servers = {
   lua_ls = { command = "lua-language-server", filetypes = { "lua" } },
   basedpyright = { command = "basedpyright-langserver", filetypes = { "python" } },
@@ -299,7 +300,7 @@ function M.setup(pack)
   end
 
   local function configure_typescript(bufnr, filetype)
-    local root = require("config.root").get(bufnr)
+    local root = vim.fs.root(bufnr, { typescript_root_markers, { ".jj", ".git" } }) or require("config.root").get(bufnr)
     if typescript_cache[root] ~= nil then
       start_typescript(typescript_cache[root], bufnr, filetype)
       return
