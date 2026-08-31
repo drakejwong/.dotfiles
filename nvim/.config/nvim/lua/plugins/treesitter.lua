@@ -47,15 +47,19 @@ function M.setup(pack)
 
   vim.api.nvim_create_user_command("TSInstallConfigured", function()
     if use() then
-      require("nvim-treesitter").install(languages, { summary = true })
+      require("nvim-treesitter").install(languages, { summary = true }):wait(300000)
     end
   end, { desc = "Install configured Treesitter parsers" })
 
   vim.api.nvim_create_autocmd("FileType", {
     group = vim.api.nvim_create_augroup("config_treesitter", { clear = true }),
     callback = function(event)
-      if vim.bo[event.buf].buftype ~= "" or event.match == "" then return end
-      if not use() then return end
+      if vim.bo[event.buf].buftype ~= "" or event.match == "" then
+        return
+      end
+      if not use() then
+        return
+      end
       local ok = pcall(vim.treesitter.start, event.buf)
       if ok then
         vim.bo[event.buf].indentexpr = "v:lua.require'nvim-treesitter'.indentexpr()"
