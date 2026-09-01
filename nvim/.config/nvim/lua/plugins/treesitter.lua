@@ -46,9 +46,10 @@ function M.setup(pack)
   end)
 
   vim.api.nvim_create_user_command("TSInstallConfigured", function()
-    if use() then
-      require("nvim-treesitter").install(languages, { summary = true }):wait(300000)
+    if not use() then
+      error("nvim-treesitter is unavailable")
     end
+    require("nvim-treesitter").install(languages, { summary = true }):wait(300000)
   end, { desc = "Install configured Treesitter parsers" })
 
   vim.api.nvim_create_autocmd("FileType", {
