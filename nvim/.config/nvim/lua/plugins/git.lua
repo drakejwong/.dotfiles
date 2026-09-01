@@ -1,8 +1,6 @@
 local M = {
   specs = {
     { src = "https://github.com/lewis6991/gitsigns.nvim" },
-    { src = "https://github.com/sindrets/diffview.nvim" },
-    { src = "https://github.com/nvim-lua/plenary.nvim" },
   },
 }
 
@@ -57,20 +55,6 @@ function M.setup(pack)
       return vim.bo[event.buf].buftype == "" and vim.api.nvim_buf_get_name(event.buf) ~= ""
     end,
   })
-
-  local use_diffview = pack.use("diffview", { "plenary.nvim", "diffview.nvim" })
-  vim.keymap.set("n", "<leader>gd", function()
-    if use_diffview() then vim.cmd.DiffviewOpen() end
-  end, { desc = "Diff view" })
-  vim.keymap.set("n", "<leader>gD", function()
-    if use_diffview() then vim.cmd.DiffviewOpen("origin/HEAD...") end
-  end, { desc = "Diff against origin" })
-  vim.keymap.set("n", "<leader>gh", function()
-    if use_diffview() then vim.cmd.DiffviewFileHistory("%") end
-  end, { desc = "File history" })
-  vim.keymap.set("n", "<leader>gH", function()
-    if use_diffview() then vim.cmd.DiffviewFileHistory() end
-  end, { desc = "Repository history" })
 end
 
 return M
