@@ -38,7 +38,7 @@ set_symbolic_hotkey 29 false 51 20 1441792
 set_symbolic_hotkey 30 false 52 21 1179648
 set_symbolic_hotkey 31 false 52 21 1441792
 
-# Move Screenshot and Recording Options from Command-Shift-5 to Command-Shift-S.
-set_symbolic_hotkey 184 true 115 1 1179648
+# Disable the native Command-Shift-5 toolbar shortcut; skhd owns Command-Shift-S.
+set_symbolic_hotkey 184 false 53 23 1179648
 
 /System/Library/PrivateFrameworks/SystemAdministration.framework/Resources/activateSettings -u

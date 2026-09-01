@@ -7,6 +7,9 @@ ctrl + alt + cmd - r : yabai --restart-service
 # open terminal
 cmd - return : open -na Ghostty
 
+# open the macOS screenshot and recording toolbar
+shift + cmd - s : /usr/bin/open -b com.apple.screenshot.launcher
+
 # open mpv with url from clipboard
 # shift + cmd - m : mpv $(pbpaste)
 
