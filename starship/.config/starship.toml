@@ -1,0 +1,164 @@
+"$schema" = "https://starship.rs/config-schema.json"
+
+# Preserve the two-line Powerlevel10k layout.
+add_newline = true
+command_timeout = 500
+
+format = """\
+$directory\
+$git_branch\
+$git_commit\
+$git_state\
+$git_status\
+${custom.jj_native}\
+$fill\
+$status\
+$cmd_duration\
+$jobs\
+$direnv\
+$nodejs\
+$rust\
+$golang\
+$kubernetes\
+$terraform\
+$aws\
+$gcloud\
+$time\
+$line_break\
+$character"""
+
+[fill]
+symbol = "·"
+style = "fg:240"
+
+[directory]
+format = "[$path]($style)[$read_only]($read_only_style) "
+style = "bold fg:39"
+read_only = " "
+read_only_style = "fg:178"
+truncation_length = 4
+truncate_to_repo = true
+
+# Match the former Powerlevel10k Git formatter. Colocated JJ repositories expose
+# the active checkpoint as worktree changes, so these modules show one branch,
+# remote divergence, and per-state file counts without duplicate JJ bookmarks.
+[git_branch]
+format = "[$branch]($style)"
+style = "fg:76"
+truncation_length = 32
+truncation_symbol = "…"
+
+[git_commit]
+format = "[@$hash$tag]($style)"
+style = "fg:76"
+only_detached = true
+tag_symbol = "#"
+
+[git_state]
+format = "[ $state( $progress_current/$progress_total)]($style)"
+style = "bold fg:214"
+
+[git_status]
+format = "([ $ahead_behind](fg:76))([ $stashed](fg:178))([ $conflicted](bold fg:196))([ $staged](fg:178))([ $modified](fg:178))([ $renamed](fg:76))([ $deleted](fg:196))([ $untracked](fg:39)) "
+ahead = "⇡${count}"
+behind = "⇣${count}"
+diverged = "⇣${behind_count}⇡${ahead_count}"
+up_to_date = ""
+stashed = "*${count}"
+conflicted = "~${count}"
+staged = "+${count}"
+modified = "!${count}"
+renamed = "»${count}"
+deleted = "-${count}"
+untracked = "?${count}"
+
+# Starship 1.26 has no native JJ modules. Keep a compact fallback for native
+# (non-colocated) JJ repositories; colocated repositories use Git status above.
+[custom.jj_native]
+description = "Native Jujutsu working-copy state"
+when = '''
+dir=$PWD
+while [ "$dir" != / ]; do
+  if [ -e "$dir/.jj" ]; then
+    [ ! -e "$dir/.git" ]
+    exit
+  fi
+  dir=${dir%/*}
+  [ -n "$dir" ] || dir=/
+done
+exit 1
+'''
+command = "prompt"
+shell = [
+  "jj-starship",
+  "--truncate-name", "32",
+  "--ancestor-bookmark-depth", "10",
+  "--bookmarks-display-limit", "1",
+  "--no-jj-prefix",
+  "--no-jj-id",
+  "--no-symbol",
+]
+use_stdin = false
+format = "($output )"
+style = ""
+
+[status]
+disabled = false
+format = "[$symbol$status]($style) "
+symbol = "✘"
+style = "fg:160"
+
+[cmd_duration]
+min_time = 3_000
+format = "[$duration]($style) "
+style = "fg:101"
+
+[jobs]
+format = "[$symbol]($style) "
+symbol = "✦"
+style = "fg:70"
+
+[direnv]
+disabled = false
+format = "[$loaded/$allowed]($style) "
+style = "fg:178"
+
+[nodejs]
+format = "[$symbol$version]($style) "
+
+[rust]
+format = "[$symbol$version]($style) "
+
+[golang]
+format = "[$symbol$version]($style) "
+
+[kubernetes]
+disabled = false
+detect_files = ["Chart.yaml", "kustomization.yaml"]
+detect_folders = ["charts"]
+format = "[$symbol$context( ($namespace))]($style) "
+
+[terraform]
+format = "[$symbol$workspace]($style) "
+
+[aws]
+format = "[$symbol$profile( ($region))]($style) "
+
+# Avoid showing the active gcloud account in every directory.
+[gcloud]
+detect_env_vars = ["CLOUDSDK_ACTIVE_CONFIG_NAME", "CLOUDSDK_CORE_PROJECT"]
+format = "[$symbol$project]($style) "
+
+[time]
+disabled = false
+format = "[$time]($style)"
+time_format = "%H:%M:%S"
+style = "fg:66"
+
+[character]
+success_symbol = "[❯](fg:76)"
+error_symbol = "[❯](fg:196)"
+vimcmd_symbol = "[❮](fg:76)"
+vimcmd_replace_one_symbol = "[▶](fg:76)"
+vimcmd_replace_symbol = "[▶](fg:76)"
+vimcmd_visual_symbol = "[V](fg:76)"

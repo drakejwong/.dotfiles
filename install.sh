@@ -11,7 +11,7 @@ fi
 DOTFILES_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 PIBERT_DIR="$HOME/.pibert"
 BACKUP_DIR="$HOME/.dotfiles-backup/$(date +%Y%m%d-%H%M%S)"
-PACKAGES=(mise git jj ghostty herdr nvim zsh karabiner yabai skhd)
+PACKAGES=(mise git jj ghostty herdr nvim starship zsh karabiner yabai skhd)
 
 backup_and_link() {
 	local source=$1 target=$2 relative
@@ -76,6 +76,7 @@ prune_retired_links() {
 	local targets=(
 		"$HOME/.tmux.conf"
 		"$HOME/.tmux.conf.local"
+		"$HOME/.p10k.zsh"
 		"$HOME/.wezterm.lua"
 		"$HOME/.config/alacritty"
 		"$HOME/.config/zellij"
@@ -95,6 +96,27 @@ prune_retired_links() {
 	done
 }
 
+install_zsh_plugins() {
+	local plugin_root="${XDG_DATA_HOME:-$HOME/.local/share}/zsh/plugins"
+	local repo target
+	local repos=(
+		romkatv/zsh-defer
+		zsh-users/zsh-autosuggestions
+		zsh-users/zsh-completions
+		zsh-users/zsh-history-substring-search
+		zsh-users/zsh-syntax-highlighting
+	)
+	mkdir -p "$plugin_root"
+	for repo in "${repos[@]}"; do
+		target="$plugin_root/${repo##*/}"
+		if [[ ! -d "$target/.git" ]]; then
+			git clone --quiet --depth 1 "https://github.com/$repo.git" "$target"
+		elif [[ ${UPDATE_ZSH_PLUGINS:-0} == 1 ]]; then
+			git -C "$target" pull --quiet --ff-only
+		fi
+	done
+}
+
 install_mise() {
 	if [[ ! -x "$HOME/.local/bin/mise" ]] && ! command -v mise >/dev/null 2>&1; then
 		curl -fsSL https://mise.run | sh
@@ -102,6 +124,34 @@ install_mise() {
 	export PATH="$HOME/.local/bin:$PATH"
 	eval "$(mise activate bash)"
 	mise install
+}
+
+install_jj_starship() {
+	local install_dir binary
+	install_dir=$(mise where 'github:dmmulroy/jj-starship@0.7.1')
+	binary="$install_dir/jj-starship"
+	# The v0.7.1 release archive does not preserve its executable bit.
+	chmod 0755 "$binary"
+	ln -sfn "$binary" "$HOME/.local/bin/jj-starship"
+}
+
+install_zsh_cache() {
+	local cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}/zsh"
+	local completion_dir="$cache_dir/completions"
+	local plugin_root="${XDG_DATA_HOME:-$HOME/.local/share}/zsh/plugins"
+	mkdir -p "$completion_dir"
+
+	command -v starship >/dev/null 2>&1 && starship init zsh >"$cache_dir/starship-init.zsh"
+	command -v fzf >/dev/null 2>&1 && fzf --zsh >"$cache_dir/fzf-init.zsh"
+	command -v zoxide >/dev/null 2>&1 && zoxide init zsh >"$cache_dir/zoxide-init.zsh"
+	command -v jj >/dev/null 2>&1 && jj util completion zsh >"$completion_dir/_jj"
+	command -v herdr >/dev/null 2>&1 && herdr completion zsh >"$completion_dir/_herdr"
+
+	zsh -fc 'fpath=("$1/zsh-completions/src" "$2" $fpath); autoload -Uz compinit; compinit -i -d "$3"' \
+		-- "$plugin_root" "$completion_dir" "$cache_dir/zcompdump"
+	for source in "$cache_dir"/{starship,fzf,zoxide}-init.zsh "$cache_dir/zcompdump"; do
+		[[ ! -s $source ]] || zsh -fc 'zcompile "$1"' -- "$source"
+	done
 }
 
 install_neovim_resources() {
@@ -187,8 +237,10 @@ done
 install_mutable_config "$DOTFILES_DIR/herdr/.config/herdr/config.toml" "$HOME/.config/herdr/config.toml"
 install_mutable_config "$DOTFILES_DIR/karabiner/.config/karabiner/karabiner.json" "$HOME/.config/karabiner/karabiner.json"
 prune_retired_links
+install_zsh_plugins
 
 install_mise
+install_jj_starship
 install_neovim_resources
 install_fonts
 "$DOTFILES_DIR/configure-macos-shortcuts.sh"
@@ -221,6 +273,8 @@ if [[ ${SKIP_HERDR_BUILD:-0} != 1 ]] && { [[ ${UPDATE_NATIVE_TOOLS:-0} == 1 ]] |
 	install_herdr_build_dependencies
 	herdr-patched-update
 fi
+
+install_zsh_cache
 
 # Both generated LaunchAgents use RunAtLoad, so they start now and at login.
 yabai --start-service
