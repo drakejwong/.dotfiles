@@ -12,24 +12,44 @@ function M.setup(pack)
       current_line_blame = false,
       on_attach = function(buf)
         local gs = require("gitsigns")
-        local function map(mode, lhs, rhs, desc, opts)
-          vim.keymap.set(mode, lhs, rhs, vim.tbl_extend("force", { buffer = buf, desc = desc }, opts or {}))
+        local function map(mode, lhs, rhs, desc)
+          vim.keymap.set(mode, lhs, rhs, { buffer = buf, desc = desc })
         end
         map("n", "]h", function()
-          if vim.wo.diff then return "]c" end
-          vim.schedule(gs.next_hunk)
-          return "<Ignore>"
-        end, "Next hunk", { expr = true })
+          if vim.wo.diff then
+            vim.cmd.normal({ "]c", bang = true })
+          else
+            gs.nav_hunk("next")
+          end
+        end, "Next hunk")
         map("n", "[h", function()
-          if vim.wo.diff then return "[c" end
-          vim.schedule(gs.prev_hunk)
-          return "<Ignore>"
-        end, "Previous hunk", { expr = true })
-        map("n", "<leader>ghs", gs.stage_hunk, "Stage hunk")
-        map("n", "<leader>ghr", gs.reset_hunk, "Reset hunk")
-        map("n", "<leader>ghp", gs.preview_hunk, "Preview hunk")
-        map("n", "<leader>ghb", gs.blame_line, "Blame line")
+          if vim.wo.diff then
+            vim.cmd.normal({ "[c", bang = true })
+          else
+            gs.nav_hunk("prev")
+          end
+        end, "Previous hunk")
+        map("n", "]H", function()
+          gs.nav_hunk("last")
+        end, "Last hunk")
+        map("n", "[H", function()
+          gs.nav_hunk("first")
+        end, "First hunk")
+        map({ "n", "x" }, "<leader>ghs", ":Gitsigns stage_hunk<CR>", "Stage hunk")
+        map({ "n", "x" }, "<leader>ghr", ":Gitsigns reset_hunk<CR>", "Reset hunk")
+        map("n", "<leader>ghS", gs.stage_buffer, "Stage buffer")
+        map("n", "<leader>ghu", gs.undo_stage_hunk, "Undo stage hunk")
+        map("n", "<leader>ghR", gs.reset_buffer, "Reset buffer")
+        map("n", "<leader>ghp", gs.preview_hunk_inline, "Preview hunk inline")
+        map("n", "<leader>ghb", function()
+          gs.blame_line({ full = true })
+        end, "Blame line")
+        map("n", "<leader>ghB", gs.blame, "Blame buffer")
         map("n", "<leader>ghd", gs.diffthis, "Diff file")
+        map("n", "<leader>ghD", function()
+          gs.diffthis("~")
+        end, "Diff file against previous commit")
+        map({ "o", "x" }, "ih", ":<C-U>Gitsigns select_hunk<CR>", "Select hunk")
       end,
     })
   end, {
