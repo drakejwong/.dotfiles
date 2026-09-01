@@ -191,6 +191,7 @@ prune_retired_links
 install_mise
 install_neovim_resources
 install_fonts
+"$DOTFILES_DIR/configure-macos-shortcuts.sh"
 
 install_yabai_now=false
 install_skhd_now=false
