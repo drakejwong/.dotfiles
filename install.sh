@@ -36,8 +36,63 @@ link_package() {
 	[[ -d "$package_dir" ]] || return
 	while IFS= read -r -d '' source; do
 		relative=${source#"$package_dir"/}
+		case "$package/$relative" in
+		herdr/.config/herdr/config.toml | karabiner/.config/karabiner/karabiner.json)
+			continue
+			;;
+		esac
 		backup_and_link "$source" "$HOME/$relative"
 	done < <(find "$package_dir" -type f -print0)
+}
+
+install_mutable_config() {
+	local source=$1 target=$2 relative
+	mkdir -p "$(dirname "$target")"
+	if [[ -e $target || -L $target ]]; then
+		if [[ -L $target ]]; then
+			if [[ $target -ef $source ]]; then
+				rm "$target"
+			else
+				relative=${target#"$HOME"/}
+				mkdir -p "$BACKUP_DIR/$(dirname "$relative")"
+				mv "$target" "$BACKUP_DIR/$relative"
+				printf 'Backed up %s -> %s\n' "$target" "$BACKUP_DIR/$relative"
+			fi
+		elif cmp -s "$source" "$target"; then
+			return
+		else
+			relative=${target#"$HOME"/}
+			mkdir -p "$BACKUP_DIR/$(dirname "$relative")"
+			mv "$target" "$BACKUP_DIR/$relative"
+			printf 'Backed up %s -> %s\n' "$target" "$BACKUP_DIR/$relative"
+		fi
+	fi
+	install -m 0644 "$source" "$target"
+	printf 'Installed mutable config %s\n' "$target"
+}
+
+prune_retired_links() {
+	local target link
+	local targets=(
+		"$HOME/.tmux.conf"
+		"$HOME/.tmux.conf.local"
+		"$HOME/.wezterm.lua"
+		"$HOME/.config/alacritty"
+		"$HOME/.config/zellij"
+		"$HOME/.config/bin"
+		"$HOME/.local/bin/zt-new-tab"
+		"$HOME/.zfunc/_poetry"
+		"$HOME/.zfunc/_poetry.zwc"
+	)
+	for target in "${targets[@]}"; do
+		if [[ -L $target && ! -e $target ]]; then
+			link=$(readlink "$target")
+			if [[ $link == "$DOTFILES_DIR/"* ]]; then
+				rm "$target"
+				printf 'Removed obsolete link %s\n' "$target"
+			fi
+		fi
+	done
 }
 
 install_mise() {
@@ -47,7 +102,6 @@ install_mise() {
 	export PATH="$HOME/.local/bin:$PATH"
 	eval "$(mise activate bash)"
 	mise install
-	mise exec -- git lfs install
 }
 
 install_neovim_resources() {
@@ -56,11 +110,26 @@ install_neovim_resources() {
 
 install_fonts() {
 	local font_dir="$HOME/Library/Fonts" archive
+	if [[ ${UPDATE_NATIVE_TOOLS:-0} != 1 && -f "$font_dir/HackNerdFontMono-Regular.ttf" ]]; then
+		return
+	fi
 	mkdir -p "$font_dir"
 	archive=$(mktemp "${TMPDIR:-/tmp}/Hack.zip.XXXXXX")
 	curl -fsSL "https://github.com/ryanoasis/nerd-fonts/releases/latest/download/Hack.zip" -o "$archive"
 	unzip -jqo "$archive" 'HackNerdFontMono-*.ttf' -d "$font_dir"
 	rm -f "$archive"
+}
+
+migrate_zsh_secret() {
+	local old_secret="$DOTFILES_DIR/zsh/.zshsecret"
+	local new_secret="$HOME/.zshsecret"
+	if [[ -f $old_secret && ! -e $new_secret ]]; then
+		mv "$old_secret" "$new_secret"
+		chmod 0600 "$new_secret"
+		printf 'Moved %s -> %s\n' "$old_secret" "$new_secret"
+	elif [[ -f $old_secret && -e $new_secret ]]; then
+		printf 'Both %s and %s exist; keeping both.\n' "$old_secret" "$new_secret" >&2
+	fi
 }
 
 stop_window_manager_services() {
@@ -105,31 +174,49 @@ install_herdr_build_dependencies() {
 }
 
 install_pibert() {
-	if [[ -d "$PIBERT_DIR/.git" ]]; then
-		git -C "$PIBERT_DIR" pull --ff-only
-	else
+	if [[ ! -d "$PIBERT_DIR/.git" ]]; then
 		git clone https://github.com/drakejwong/pibert.git "$PIBERT_DIR"
 	fi
 	"$PIBERT_DIR/install.sh"
 }
 
-printf 'Updating %s...\n' "$DOTFILES_DIR"
-git -C "$DOTFILES_DIR" pull --ff-only
-
+migrate_zsh_secret
 for package in "${PACKAGES[@]}"; do
 	link_package "$package"
 done
+install_mutable_config "$DOTFILES_DIR/herdr/.config/herdr/config.toml" "$HOME/.config/herdr/config.toml"
+install_mutable_config "$DOTFILES_DIR/karabiner/.config/karabiner/karabiner.json" "$HOME/.config/karabiner/karabiner.json"
+prune_retired_links
 
 install_mise
 install_neovim_resources
 install_fonts
-stop_window_manager_services
-install_yabai
-install_skhd
+
+install_yabai_now=false
+install_skhd_now=false
+if [[ ${UPDATE_NATIVE_TOOLS:-0} == 1 ]] || ! command -v yabai >/dev/null 2>&1; then
+	install_yabai_now=true
+fi
+if [[ ${UPDATE_NATIVE_TOOLS:-0} == 1 ]] || ! command -v skhd >/dev/null 2>&1; then
+	install_skhd_now=true
+fi
+if $install_yabai_now || $install_skhd_now; then
+	stop_window_manager_services
+fi
+if $install_yabai_now; then
+	install_yabai
+fi
+if $install_skhd_now; then
+	if ! xcode-select -p >/dev/null 2>&1 || ! command -v clang >/dev/null 2>&1; then
+		printf '%s\n' 'Xcode Command Line Tools are required. Run xcode-select --install, then retry.' >&2
+		exit 1
+	fi
+	install_skhd
+fi
 
 install_pibert
 
-if [[ ${SKIP_HERDR_BUILD:-0} != 1 ]]; then
+if [[ ${SKIP_HERDR_BUILD:-0} != 1 ]] && { [[ ${UPDATE_NATIVE_TOOLS:-0} == 1 ]] || ! command -v herdr >/dev/null 2>&1; }; then
 	install_herdr_build_dependencies
 	herdr-patched-update
 fi
@@ -138,9 +225,14 @@ fi
 yabai --start-service
 skhd --start-service
 
+if [[ ! -d /Applications/Ghostty.app ]]; then
+	printf 'Ghostty is not installed; get the signed macOS app from https://ghostty.org/download.\n' >&2
+fi
+
 cat <<'EOF'
 Dotfiles and CLI tools are installed.
-yabai and skhd are enabled now and at login. Run
-~/.dotfiles/install-karabiner.sh from an interactive terminal if
-Karabiner-Elements is not installed, then approve its requested permissions.
+yabai and skhd are enabled now and at login. Set UPDATE_NATIVE_TOOLS=1 to
+refresh native tools on a later run. Run ~/.dotfiles/install-karabiner.sh from
+an interactive terminal if Karabiner-Elements is not installed, then approve
+its requested permissions.
 EOF
