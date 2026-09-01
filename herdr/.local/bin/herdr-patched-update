@@ -181,4 +181,8 @@ chmod 0755 "$temporary_binary"
 mv -f "$temporary_binary" "$install_dir/herdr"
 
 echo "Installed patched Herdr $ref to $install_dir/herdr"
+resolved=$(command -v herdr || true)
+if [[ $resolved != "$install_dir/herdr" ]]; then
+	echo "Warning: this shell resolves herdr as ${resolved:-<not found>}; put $install_dir first in PATH." >&2
+fi
 echo "Already-running Herdr servers keep their current binary until restarted."
