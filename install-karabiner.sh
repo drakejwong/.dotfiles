@@ -50,14 +50,22 @@ pkg=$(find "$mountpoint" -maxdepth 2 -name '*.pkg' -print -quit)
 sudo installer -pkg "$pkg" -target /
 
 mkdir -p "$(dirname "$TARGET")"
-if [[ -e "$TARGET" || -L "$TARGET" ]]; then
-	if [[ ! "$TARGET" -ef "$SOURCE" ]]; then
+if [[ -e $TARGET || -L $TARGET ]]; then
+	if [[ -L $TARGET ]]; then
+		if [[ $TARGET -ef $SOURCE ]]; then
+			rm "$TARGET"
+		else
+			backup="$TARGET.before-dotfiles-$(date +%Y%m%d-%H%M%S)"
+			mv "$TARGET" "$backup"
+			printf 'Backed up the existing Karabiner configuration to %s\n' "$backup"
+		fi
+	elif ! cmp -s "$SOURCE" "$TARGET"; then
 		backup="$TARGET.before-dotfiles-$(date +%Y%m%d-%H%M%S)"
 		mv "$TARGET" "$backup"
 		printf 'Backed up the existing Karabiner configuration to %s\n' "$backup"
 	fi
 fi
-[[ -e "$TARGET" || -L "$TARGET" ]] || ln -s "$SOURCE" "$TARGET"
+install -m 0644 "$SOURCE" "$TARGET"
 
 uid=$(id -u)
 for label in \
@@ -70,7 +78,7 @@ done
 
 open -a Karabiner-Elements
 cat <<'EOF'
-Karabiner-Elements is installed and its configuration is linked.
+Karabiner-Elements is installed and its configuration is copied into place.
 Approve its background services, Accessibility, Input Monitoring, and virtual
 HID Driver Extension when macOS asks.
 EOF
