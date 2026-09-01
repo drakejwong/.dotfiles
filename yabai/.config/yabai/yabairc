@@ -9,5 +9,5 @@ yabai -m signal --remove ultrawide-three-column-created 2>/dev/null || true
 yabai -m signal --remove ultrawide-three-column-destroyed 2>/dev/null || true
 yabai -m signal --remove ultrawide-three-column-moved 2>/dev/null || true
 yabai -m signal --remove ultrawide-three-column-space 2>/dev/null || true
-yabai -m signal --add label=ultrawide-three-column-created event=window_created action="sleep 0.3; /Users/drake/.config/yabai/ultrawide-three-column >/dev/null 2>&1 || true"
-yabai -m signal --add label=ultrawide-three-column-destroyed event=window_destroyed action="sleep 0.3; /Users/drake/.config/yabai/ultrawide-three-column >/dev/null 2>&1 || true"
+yabai -m signal --add label=ultrawide-three-column-created event=window_created action="sleep 0.3; $HOME/.config/yabai/ultrawide-three-column >/dev/null 2>&1 || true"
+yabai -m signal --add label=ultrawide-three-column-destroyed event=window_destroyed action="sleep 0.3; $HOME/.config/yabai/ultrawide-three-column >/dev/null 2>&1 || true"
