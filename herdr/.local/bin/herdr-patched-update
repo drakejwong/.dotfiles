@@ -67,6 +67,7 @@ patch_files=(
 	"$patch_dir/agent-number-shortcuts-master.patch"
 	"$patch_dir/sidebar-agent-workspaces-master.patch"
 	"$patch_dir/agent-shortcut-badges-master.patch"
+	"$patch_dir/sidebar-keyboard-navigation-master.patch"
 )
 
 for patch_file in "${patch_files[@]}"; do
@@ -157,6 +158,7 @@ if $run_tests; then
 	cargo test --bin herdr agent_context_menu_offers_direct_rename
 	cargo test --bin herdr agent_shortcuts_favor_real_positions_and_reserve_nine_for_last
 	cargo test --bin herdr default_agent_row_gap_packs_rendering_and_scroll_geometry
+	cargo test --bin herdr sidebar_navigation
 fi
 
 echo "Building the release binary from source..."

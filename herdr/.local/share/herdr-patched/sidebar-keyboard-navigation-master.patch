@@ -1,0 +1,1213 @@
+diff --git a/src/app/input/mouse.rs b/src/app/input/mouse.rs
+index f901223f..28ee2ed2 100644
+--- a/src/app/input/mouse.rs
++++ b/src/app/input/mouse.rs
+@@ -1060,36 +1060,7 @@ impl AppState {
+                 if let Some(idx) = self.workspace_at_row(mouse.row) {
+                     self.selected = idx;
+                     let kind = self
+-                        .workspaces
+-                        .get(idx)
+-                        .and_then(|ws| {
+-                            let group_state = crate::ui::workspace_parent_group_state(self, idx);
+-                            let git_space = ws.git_space().cloned().or_else(|| {
+-                                ws.resolved_identity_cwd_from(&self.terminals, terminal_runtimes)
+-                                    .as_deref()
+-                                    .and_then(crate::workspace::git_space_metadata)
+-                            });
+-                            let is_linked_worktree = ws.worktree_space().map_or_else(
+-                                || {
+-                                    git_space
+-                                        .as_ref()
+-                                        .is_some_and(|space| space.is_linked_worktree)
+-                                },
+-                                |space| space.is_linked_worktree,
+-                            );
+-                            let show_git_menu = ws.worktree_space().is_some()
+-                                || git_space
+-                                    .as_ref()
+-                                    .is_some_and(|space| !space.is_linked_worktree);
+-                            show_git_menu.then_some(ContextMenuKind::GitWorkspace {
+-                                ws_idx: idx,
+-                                is_linked_worktree,
+-                                has_worktree_children: group_state.is_some(),
+-                                collapsed: group_state
+-                                    .as_ref()
+-                                    .is_some_and(|(_, collapsed)| *collapsed),
+-                            })
+-                        })
++                        .workspace_context_menu_kind(terminal_runtimes, idx)
+                         .unwrap_or(ContextMenuKind::Workspace { ws_idx: idx });
+                     self.context_menu = Some(ContextMenuState {
+                         kind,
+diff --git a/src/app/input/navigate.rs b/src/app/input/navigate.rs
+index e7a339da..6a20b50e 100644
+--- a/src/app/input/navigate.rs
++++ b/src/app/input/navigate.rs
+@@ -13,7 +13,10 @@ use ratatui::layout::Direction;
+ 
+ use crate::{
+     app::{
+-        state::{AppState, Mode},
++        state::{
++            AppState, ContextMenuKind, ContextMenuState, MenuListState, Mode,
++            SidebarNavigationTarget,
++        },
+         App,
+     },
+     input::TerminalKey,
+@@ -121,24 +124,7 @@ impl App {
+             return;
+         }
+ 
+-        if self
+-            .state
+-            .keybinds
+-            .navigate
+-            .workspace_up
+-            .matches_direct_key(&raw_key)
+-        {
+-            self.state.move_selected_workspace_by_visible_delta(-1);
+-            return;
+-        }
+-        if self
+-            .state
+-            .keybinds
+-            .navigate
+-            .workspace_down
+-            .matches_direct_key(&raw_key)
+-        {
+-            self.state.move_selected_workspace_by_visible_delta(1);
++        if self.handle_sidebar_navigation_key(&raw_key) {
+             return;
+         }
+ 
+@@ -168,6 +154,130 @@ impl App {
+         }
+     }
+ 
++    fn handle_sidebar_navigation_key(&mut self, key: &TerminalKey) -> bool {
++        if self
++            .state
++            .keybinds
++            .navigate
++            .workspace_up
++            .matches_direct_key(key)
++        {
++            self.move_sidebar_navigation_selection(-1);
++            return true;
++        }
++        if self
++            .state
++            .keybinds
++            .navigate
++            .workspace_down
++            .matches_direct_key(key)
++        {
++            self.move_sidebar_navigation_selection(1);
++            return true;
++        }
++
++        let (code, modifiers) = crate::config::normalize_key_combo((key.code, key.modifiers));
++        if !modifiers.is_empty() {
++            return false;
++        }
++
++        match code {
++            KeyCode::Left | KeyCode::Char('h') => {
++                leave_navigate_mode(&mut self.state);
++                true
++            }
++            KeyCode::Right | KeyCode::Char('l') => {
++                self.open_sidebar_navigation_context_menu();
++                true
++            }
++            KeyCode::Enter => {
++                self.accept_sidebar_navigation_selection();
++                true
++            }
++            _ => false,
++        }
++    }
++
++    fn move_sidebar_navigation_selection(&mut self, delta: isize) {
++        move_sidebar_navigation_selection(&mut self.state, delta);
++    }
++
++    fn accept_sidebar_navigation_selection(&mut self) {
++        match self.state.sidebar_navigation_target {
++            SidebarNavigationTarget::Workspaces => {
++                if !self.state.workspaces.is_empty() {
++                    self.focus_workspace_idx_via_api(self.state.selected);
++                    leave_navigate_mode(&mut self.state);
++                }
++            }
++            SidebarNavigationTarget::Agents => {
++                let entries = crate::ui::agent_panel_entries(&self.state);
++                let Some(target) = entries.get(self.state.selected_agent) else {
++                    return;
++                };
++                let ws_idx = target.ws_idx;
++                let pane_id = target.pane_id;
++                self.focus_pane_internal_via_api(ws_idx, pane_id);
++                self.state
++                    .ensure_agent_panel_entry_visible(self.state.selected_agent);
++                leave_navigate_mode(&mut self.state);
++            }
++        }
++    }
++
++    fn open_sidebar_navigation_context_menu(&mut self) {
++        let sidebar = self.state.view.sidebar_rect;
++        match self.state.sidebar_navigation_target {
++            SidebarNavigationTarget::Workspaces => {
++                let ws_idx = self.state.selected;
++                let Some(kind) = self
++                    .state
++                    .workspace_context_menu_kind(&self.terminal_runtimes, ws_idx)
++                else {
++                    return;
++                };
++                self.state.ensure_workspace_visible(ws_idx);
++                let cards = crate::ui::compute_workspace_card_areas(&self.state, sidebar);
++                let rect = cards
++                    .iter()
++                    .find(|card| card.ws_idx == ws_idx)
++                    .map(|card| card.rect)
++                    .unwrap_or(sidebar);
++                self.state.context_menu = Some(ContextMenuState {
++                    kind,
++                    x: rect.x + rect.width.saturating_sub(1),
++                    y: rect.y,
++                    list: MenuListState::new(0),
++                });
++                self.state.mode = Mode::ContextMenu;
++            }
++            SidebarNavigationTarget::Agents => {
++                let entries = crate::ui::agent_panel_entries(&self.state);
++                let Some(target) = entries.get(self.state.selected_agent) else {
++                    return;
++                };
++                let kind = ContextMenuKind::Agent {
++                    ws_idx: target.ws_idx,
++                    tab_idx: target.tab_idx,
++                    pane_id: target.pane_id,
++                };
++                let rect = crate::ui::agent_panel_entry_rect(
++                    &self.state,
++                    sidebar,
++                    self.state.selected_agent,
++                )
++                .unwrap_or_else(|| self.state.agent_panel_rect());
++                self.state.context_menu = Some(ContextMenuState {
++                    kind,
++                    x: rect.x + rect.width.saturating_sub(1),
++                    y: rect.y,
++                    list: MenuListState::new(0),
++                });
++                self.state.mode = Mode::ContextMenu;
++            }
++        }
++    }
++
+     pub(super) fn execute_tui_navigate_action(
+         &mut self,
+         action: NavigateAction,
+@@ -245,9 +355,30 @@ impl App {
+                 }
+             }
+             NavigateAction::WorkspacePicker => {
++                self.state.sidebar_navigation_target =
++                    crate::app::state::SidebarNavigationTarget::Workspaces;
+                 self.state.mobile_switcher_scroll = 0;
+                 self.state.mode = Mode::Navigate;
+             }
++            NavigateAction::AgentPicker => {
++                let entries = crate::ui::agent_panel_entries(&self.state);
++                if !entries.is_empty() {
++                    let focused = self
++                        .state
++                        .active
++                        .and_then(|idx| self.state.workspaces.get(idx))
++                        .and_then(crate::workspace::Workspace::focused_pane_id);
++                    self.state.selected_agent = entries
++                        .iter()
++                        .position(|entry| Some(entry.pane_id) == focused)
++                        .unwrap_or(0);
++                    self.state
++                        .ensure_agent_panel_entry_visible(self.state.selected_agent);
++                }
++                self.state.sidebar_navigation_target =
++                    crate::app::state::SidebarNavigationTarget::Agents;
++                self.state.mode = Mode::Navigate;
++            }
+             NavigateAction::PreviousWorkspace => {
+                 if let Some(ws_idx) = self.relative_visible_workspace(-1) {
+                     self.focus_workspace_idx_via_api(ws_idx);
+@@ -1242,45 +1373,73 @@ fn unmodified_digit_for_key(key: &TerminalKey) -> Option<char> {
+     })
+ }
+ 
++fn move_sidebar_navigation_selection(state: &mut AppState, delta: isize) {
++    match state.sidebar_navigation_target {
++        SidebarNavigationTarget::Workspaces => {
++            state.move_selected_workspace_by_visible_delta(delta)
++        }
++        SidebarNavigationTarget::Agents => {
++            let count = crate::ui::agent_panel_entries(state).len();
++            if count == 0 {
++                return;
++            }
++            state.selected_agent = state
++                .selected_agent
++                .saturating_add_signed(delta)
++                .min(count - 1);
++            state.ensure_agent_panel_entry_visible(state.selected_agent);
++        }
++    }
++}
++
++#[cfg(test)]
++fn open_test_sidebar_navigation_context_menu(state: &mut AppState) {
++    let kind = match state.sidebar_navigation_target {
++        SidebarNavigationTarget::Workspaces => ContextMenuKind::Workspace {
++            ws_idx: state.selected,
++        },
++        SidebarNavigationTarget::Agents => {
++            let entries = crate::ui::agent_panel_entries(state);
++            let Some(target) = entries.get(state.selected_agent) else {
++                return;
++            };
++            ContextMenuKind::Agent {
++                ws_idx: target.ws_idx,
++                tab_idx: target.tab_idx,
++                pane_id: target.pane_id,
++            }
++        }
++    };
++    state.context_menu = Some(ContextMenuState {
++        kind,
++        x: 0,
++        y: 0,
++        list: MenuListState::new(0),
++    });
++    state.mode = Mode::ContextMenu;
++}
++
+ #[cfg(test)]
+ pub(super) fn handle_navigate_reserved_key(state: &mut AppState, key: TerminalKey) -> bool {
+     if let Some(c) = unmodified_digit_for_key(&key) {
+         let idx = (c as usize) - ('1' as usize);
+-        if let Some(ws_idx) = state.workspace_at_visible_position(idx) {
+-            state.switch_workspace(ws_idx);
+-            leave_navigate_mode(state);
+-        }
+-        return true;
+-    }
+-
+-    let (code, modifiers) = crate::config::normalize_key_combo((key.code, key.modifiers));
+-    if modifiers.is_empty() {
+-        match code {
+-            KeyCode::Enter => {
+-                if !state.workspaces.is_empty() {
+-                    state.switch_workspace(state.selected);
++        match state.sidebar_navigation_target {
++            SidebarNavigationTarget::Workspaces => {
++                if let Some(ws_idx) = state.workspace_at_visible_position(idx) {
++                    state.switch_workspace(ws_idx);
+                     leave_navigate_mode(state);
+                 }
+-                return true;
+-            }
+-            KeyCode::Tab => {
+-                state.cycle_pane(false);
+-                return true;
+             }
+-            KeyCode::BackTab => {
+-                state.cycle_pane(true);
+-                return true;
+-            }
+-            KeyCode::Left => {
+-                state.navigate_pane(NavDirection::Left);
+-                return true;
+-            }
+-            KeyCode::Right => {
+-                state.navigate_pane(NavDirection::Right);
+-                return true;
++            SidebarNavigationTarget::Agents => {
++                if let Some(target_idx) =
++                    numbered_agent_target_index(idx, crate::ui::agent_panel_entries(state).len())
++                {
++                    state.focus_agent_entry(target_idx);
++                    leave_navigate_mode(state);
++                }
+             }
+-            _ => {}
+         }
++        return true;
+     }
+ 
+     if state
+@@ -1289,7 +1448,7 @@ pub(super) fn handle_navigate_reserved_key(state: &mut AppState, key: TerminalKe
+         .workspace_up
+         .matches_direct_key(&key)
+     {
+-        state.move_selected_workspace_by_visible_delta(-1);
++        move_sidebar_navigation_selection(state, -1);
+         return true;
+     }
+     if state
+@@ -1298,9 +1457,49 @@ pub(super) fn handle_navigate_reserved_key(state: &mut AppState, key: TerminalKe
+         .workspace_down
+         .matches_direct_key(&key)
+     {
+-        state.move_selected_workspace_by_visible_delta(1);
++        move_sidebar_navigation_selection(state, 1);
+         return true;
+     }
++
++    let (code, modifiers) = crate::config::normalize_key_combo((key.code, key.modifiers));
++    if modifiers.is_empty() {
++        match code {
++            KeyCode::Left | KeyCode::Char('h') => {
++                leave_navigate_mode(state);
++                return true;
++            }
++            KeyCode::Right | KeyCode::Char('l') => {
++                open_test_sidebar_navigation_context_menu(state);
++                return true;
++            }
++            KeyCode::Enter => {
++                match state.sidebar_navigation_target {
++                    SidebarNavigationTarget::Workspaces => {
++                        if !state.workspaces.is_empty() {
++                            state.switch_workspace(state.selected);
++                            leave_navigate_mode(state);
++                        }
++                    }
++                    SidebarNavigationTarget::Agents => {
++                        if state.focus_agent_entry(state.selected_agent) {
++                            leave_navigate_mode(state);
++                        }
++                    }
++                }
++                return true;
++            }
++            KeyCode::Tab => {
++                state.cycle_pane(false);
++                return true;
++            }
++            KeyCode::BackTab => {
++                state.cycle_pane(true);
++                return true;
++            }
++            _ => {}
++        }
++    }
++
+     if state.keybinds.navigate.pane_left.matches_direct_key(&key) {
+         state.navigate_pane(NavDirection::Left);
+         return true;
+@@ -1323,9 +1522,11 @@ pub(super) fn handle_navigate_reserved_key(state: &mut AppState, key: TerminalKe
+ 
+ fn navigate_reserved_action_for_key(state: &AppState, key: &TerminalKey) -> Option<NavigateAction> {
+     if let Some(c) = unmodified_digit_for_key(key) {
+-        return Some(NavigateAction::SwitchWorkspace(
+-            (c as usize) - ('1' as usize),
+-        ));
++        let index = (c as usize) - ('1' as usize);
++        return Some(match state.sidebar_navigation_target {
++            SidebarNavigationTarget::Workspaces => NavigateAction::SwitchWorkspace(index),
++            SidebarNavigationTarget::Agents => NavigateAction::FocusAgent(index),
++        });
+     }
+ 
+     let (code, modifiers) = crate::config::normalize_key_combo((key.code, key.modifiers));
+@@ -1419,6 +1620,7 @@ pub(crate) enum NavigateAction {
+     SwitchTab(usize),
+     FocusAgent(usize),
+     WorkspacePicker,
++    AgentPicker,
+     PreviousWorkspace,
+     NextWorkspace,
+     PreviousAgent,
+@@ -1572,6 +1774,7 @@ fn non_indexed_action_for_key(
+         (&kb.help, NavigateAction::Help),
+         (&kb.settings, NavigateAction::Settings),
+         (&kb.workspace_picker, NavigateAction::WorkspacePicker),
++        (&kb.agent_picker, NavigateAction::AgentPicker),
+         (&kb.new_workspace, NavigateAction::NewWorkspace),
+         (&kb.new_worktree, NavigateAction::NewWorktree),
+         (&kb.open_worktree, NavigateAction::OpenWorktree),
+@@ -1754,9 +1957,27 @@ pub(super) fn execute_navigate_action_in_context(
+             }
+         }
+         NavigateAction::WorkspacePicker => {
++            state.sidebar_navigation_target =
++                crate::app::state::SidebarNavigationTarget::Workspaces;
+             state.mobile_switcher_scroll = 0;
+             state.mode = Mode::Navigate;
+         }
++        NavigateAction::AgentPicker => {
++            let entries = crate::ui::agent_panel_entries(state);
++            if !entries.is_empty() {
++                let focused = state
++                    .active
++                    .and_then(|idx| state.workspaces.get(idx))
++                    .and_then(crate::workspace::Workspace::focused_pane_id);
++                state.selected_agent = entries
++                    .iter()
++                    .position(|entry| Some(entry.pane_id) == focused)
++                    .unwrap_or(0);
++                state.ensure_agent_panel_entry_visible(state.selected_agent);
++            }
++            state.sidebar_navigation_target = crate::app::state::SidebarNavigationTarget::Agents;
++            state.mode = Mode::Navigate;
++        }
+         NavigateAction::PreviousWorkspace => {
+             state.previous_workspace();
+             leave_navigate_mode(state);
+@@ -2108,6 +2329,108 @@ mod tests {
+         app
+     }
+ 
++    fn mark_agent(state: &mut AppState, ws_idx: usize) -> crate::layout::PaneId {
++        state.ensure_test_terminals();
++        let pane_id = state.workspaces[ws_idx].tabs[0].root_pane;
++        let terminal_id = state.workspaces[ws_idx].tabs[0].panes[&pane_id]
++            .attached_terminal_id
++            .clone();
++        state
++            .terminals
++            .get_mut(&terminal_id)
++            .unwrap()
++            .set_detected_state(
++                Some(crate::detect::Agent::Pi),
++                crate::detect::AgentState::Idle,
++            );
++        pane_id
++    }
++
++    #[test]
++    fn sidebar_navigation_agent_picker_selects_the_focused_agent() {
++        let mut state = state_with_workspaces(&["one", "two"]);
++        mark_agent(&mut state, 0);
++        let second = mark_agent(&mut state, 1);
++        state.active = Some(1);
++        state.workspaces[1].tabs[0].layout.focus_pane(second);
++        state.mode = Mode::Prefix;
++        let mut terminal_runtimes = TerminalRuntimeRegistry::new();
++
++        execute_navigate_action_in_context(
++            &mut state,
++            &mut terminal_runtimes,
++            NavigateAction::AgentPicker,
++            ActionContext::Prefix,
++        );
++
++        assert_eq!(
++            state.sidebar_navigation_target,
++            SidebarNavigationTarget::Agents
++        );
++        assert_eq!(state.selected_agent, 1);
++        assert_eq!(state.mode, Mode::Navigate);
++    }
++
++    #[test]
++    fn sidebar_navigation_agent_list_moves_then_focuses_on_enter() {
++        let mut state = state_with_workspaces(&["one", "two"]);
++        mark_agent(&mut state, 0);
++        let second = mark_agent(&mut state, 1);
++        let config: Config = toml::from_str(
++            r#"
++[keys]
++navigate_workspace_up = ["up", "k"]
++navigate_workspace_down = ["down", "j"]
++"#,
++        )
++        .unwrap();
++        state.keybinds = config.keybinds();
++        state.sidebar_navigation_target = SidebarNavigationTarget::Agents;
++        state.selected_agent = 0;
++
++        handle_navigate_key(
++            &mut state,
++            KeyEvent::new(KeyCode::Char('j'), KeyModifiers::empty()),
++        );
++
++        assert_eq!(state.selected_agent, 1);
++        assert_eq!(state.active, Some(0));
++        assert_eq!(state.mode, Mode::Navigate);
++
++        handle_navigate_key(
++            &mut state,
++            KeyEvent::new(KeyCode::Enter, KeyModifiers::empty()),
++        );
++
++        assert_eq!(state.active, Some(1));
++        assert_eq!(state.workspaces[1].focused_pane_id(), Some(second));
++        assert_eq!(state.mode, Mode::Terminal);
++    }
++
++    #[test]
++    fn sidebar_navigation_agent_list_right_opens_selected_agent_context_menu() {
++        let mut state = state_with_workspaces(&["one", "two"]);
++        mark_agent(&mut state, 0);
++        let second = mark_agent(&mut state, 1);
++        state.sidebar_navigation_target = SidebarNavigationTarget::Agents;
++        state.selected_agent = 1;
++
++        handle_navigate_key(
++            &mut state,
++            KeyEvent::new(KeyCode::Char('l'), KeyModifiers::empty()),
++        );
++
++        assert!(matches!(
++            state.context_menu.as_ref().map(|menu| &menu.kind),
++            Some(ContextMenuKind::Agent {
++                ws_idx: 1,
++                pane_id,
++                ..
++            }) if *pane_id == second
++        ));
++        assert_eq!(state.mode, Mode::ContextMenu);
++    }
++
+     #[test]
+     fn next_agent_starts_at_first_visible_entry_when_focused_agent_is_filtered_out() {
+         let mut app = app_with_test_workspaces(&["hidden", "first", "second"]);
+@@ -2141,6 +2464,28 @@ mod tests {
+         assert_eq!(app.state.active, Some(1));
+     }
+ 
++    #[test]
++    fn sidebar_navigation_configured_agent_picker_maps_to_agent_navigation() {
++        let mut state = state_with_workspaces(&["test"]);
++        let config: Config = toml::from_str(
++            r#"
++[keys]
++agent_picker = "prefix+a"
++"#,
++        )
++        .unwrap();
++        state.keybinds = config.keybinds();
++
++        assert_eq!(
++            action_for_key(
++                &state,
++                TerminalKey::new(KeyCode::Char('a'), KeyModifiers::empty()),
++                BindingDispatch::Prefix,
++            ),
++            Some(NavigateAction::AgentPicker)
++        );
++    }
++
+     #[test]
+     fn default_goto_key_opens_navigator() {
+         let mut state = state_with_workspaces(&["test"]);
+@@ -2662,35 +3007,27 @@ navigate_pane_down = "ctrl+j"
+     }
+ 
+     #[test]
+-    fn left_and_right_arrows_remain_permanent_navigate_pane_aliases() {
++    fn sidebar_navigation_workspace_list_left_exits_and_right_opens_context_menu() {
+         let mut state = state_with_workspaces(&["test"]);
+-        let root = state.workspaces[0].tabs[0].root_pane;
+-        let right = state.workspaces[0].test_split(Direction::Horizontal);
+-        state.workspaces[0].layout.focus_pane(right);
+-        crate::ui::compute_view(&mut state, ratatui::layout::Rect::new(0, 0, 80, 24));
+-        let config: Config = toml::from_str(
+-            r#"
+-[keys]
+-navigate_pane_left = "ctrl+h"
+-navigate_pane_right = "ctrl+l"
+-"#,
+-        )
+-        .unwrap();
+-        state.keybinds = config.keybinds();
++        state.mode = Mode::Navigate;
+ 
+         handle_navigate_key(
+             &mut state,
+-            KeyEvent::new(KeyCode::Left, KeyModifiers::empty()),
++            KeyEvent::new(KeyCode::Right, KeyModifiers::empty()),
+         );
+-        assert_eq!(state.workspaces[0].focused_pane_id(), Some(root));
+-        crate::ui::compute_view(&mut state, ratatui::layout::Rect::new(0, 0, 80, 24));
++        assert!(matches!(
++            state.context_menu.as_ref().map(|menu| &menu.kind),
++            Some(ContextMenuKind::Workspace { ws_idx: 0 })
++        ));
++        assert_eq!(state.mode, Mode::ContextMenu);
+ 
++        state.context_menu = None;
++        state.mode = Mode::Navigate;
+         handle_navigate_key(
+             &mut state,
+-            KeyEvent::new(KeyCode::Right, KeyModifiers::empty()),
++            KeyEvent::new(KeyCode::Left, KeyModifiers::empty()),
+         );
+-        assert_eq!(state.workspaces[0].focused_pane_id(), Some(right));
+-        assert_eq!(state.mode, Mode::Navigate);
++        assert_eq!(state.mode, Mode::Terminal);
+     }
+ 
+     #[test]
+diff --git a/src/app/input/sidebar.rs b/src/app/input/sidebar.rs
+index 0923eef6..a9257645 100644
+--- a/src/app/input/sidebar.rs
++++ b/src/app/input/sidebar.rs
+@@ -1,6 +1,6 @@
+ use ratatui::layout::Rect;
+ 
+-use crate::app::state::{AppState, ViewLayout};
++use crate::app::state::{AppState, ContextMenuKind, ViewLayout};
+ 
+ use super::ScrollbarClickTarget;
+ 
+@@ -299,6 +299,45 @@ impl AppState {
+         self.mark_session_dirty();
+     }
+ 
++    pub(super) fn workspace_context_menu_kind(
++        &self,
++        terminal_runtimes: &crate::terminal::TerminalRuntimeRegistry,
++        ws_idx: usize,
++    ) -> Option<ContextMenuKind> {
++        let workspace = self.workspaces.get(ws_idx)?;
++        let group_state = crate::ui::workspace_parent_group_state(self, ws_idx);
++        let git_space = workspace.git_space().cloned().or_else(|| {
++            workspace
++                .resolved_identity_cwd_from(&self.terminals, terminal_runtimes)
++                .as_deref()
++                .and_then(crate::workspace::git_space_metadata)
++        });
++        let is_linked_worktree = workspace.worktree_space().map_or_else(
++            || {
++                git_space
++                    .as_ref()
++                    .is_some_and(|space| space.is_linked_worktree)
++            },
++            |space| space.is_linked_worktree,
++        );
++        let show_git_menu = workspace.worktree_space().is_some()
++            || git_space
++                .as_ref()
++                .is_some_and(|space| !space.is_linked_worktree);
++        Some(if show_git_menu {
++            ContextMenuKind::GitWorkspace {
++                ws_idx,
++                is_linked_worktree,
++                has_worktree_children: group_state.is_some(),
++                collapsed: group_state
++                    .as_ref()
++                    .is_some_and(|(_, collapsed)| *collapsed),
++            }
++        } else {
++            ContextMenuKind::Workspace { ws_idx }
++        })
++    }
++
+     pub(super) fn workspace_at_row(&self, row: u16) -> Option<usize> {
+         let footer = self.sidebar_footer_rect();
+         if footer == Rect::default() {
+diff --git a/src/app/mod.rs b/src/app/mod.rs
+index 2632804e..ad143b94 100644
+--- a/src/app/mod.rs
++++ b/src/app/mod.rs
+@@ -602,6 +602,8 @@ impl App {
+             copy_mode: None,
+             workspace_scroll: 0,
+             agent_panel_scroll: 0,
++            sidebar_navigation_target: state::SidebarNavigationTarget::Workspaces,
++            selected_agent: 0,
+             tab_scroll: 0,
+             tab_scroll_follow_active: true,
+             mobile_switcher_scroll: 0,
+diff --git a/src/app/state.rs b/src/app/state.rs
+index a54d945f..474078c7 100644
+--- a/src/app/state.rs
++++ b/src/app/state.rs
+@@ -884,6 +884,13 @@ pub struct ViewState {
+     pub split_borders: Vec<SplitBorder>,
+ }
+ 
++#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
++pub enum SidebarNavigationTarget {
++    #[default]
++    Workspaces,
++    Agents,
++}
++
+ #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+ pub enum Mode {
+     Onboarding,
+@@ -1494,6 +1501,8 @@ pub struct AppState {
+     pub copy_mode: Option<CopyModeState>,
+     pub workspace_scroll: usize,
+     pub agent_panel_scroll: usize,
++    pub sidebar_navigation_target: SidebarNavigationTarget,
++    pub selected_agent: usize,
+     pub tab_scroll: usize,
+     pub tab_scroll_follow_active: bool,
+     pub mobile_switcher_scroll: usize,
+@@ -1879,6 +1888,8 @@ impl AppState {
+             copy_mode: None,
+             workspace_scroll: 0,
+             agent_panel_scroll: 0,
++            sidebar_navigation_target: SidebarNavigationTarget::Workspaces,
++            selected_agent: 0,
+             tab_scroll: 0,
+             tab_scroll_follow_active: true,
+             mobile_switcher_scroll: 0,
+diff --git a/src/config/keybinds.rs b/src/config/keybinds.rs
+index d7ad9c52..9646407c 100644
+--- a/src/config/keybinds.rs
++++ b/src/config/keybinds.rs
+@@ -315,6 +315,7 @@ pub struct Keybinds {
+     pub rename_workspace: ActionKeybinds,
+     pub close_workspace: ActionKeybinds,
+     pub workspace_picker: ActionKeybinds,
++    pub agent_picker: ActionKeybinds,
+     pub goto: ActionKeybinds,
+     pub detach: ActionKeybinds,
+     pub reload_config: ActionKeybinds,
+@@ -483,6 +484,7 @@ impl Config {
+             rename_workspace: empty_action!(),
+             close_workspace: empty_action!(),
+             workspace_picker: empty_action!(),
++            agent_picker: empty_action!(),
+             goto: empty_action!(),
+             detach: empty_action!(),
+             reload_config: empty_action!(),
+@@ -611,6 +613,7 @@ impl Config {
+             apply_action!(keybinds.rename_workspace, rename_workspace, source);
+             apply_action!(keybinds.close_workspace, close_workspace, source);
+             apply_action!(keybinds.workspace_picker, workspace_picker, source);
++            apply_action!(keybinds.agent_picker, agent_picker, source);
+             apply_action!(keybinds.goto, goto, source);
+             apply_action!(keybinds.detach, detach, source);
+             apply_action!(keybinds.reload_config, reload_config, source);
+diff --git a/src/config/model.rs b/src/config/model.rs
+index 14db2fbd..32062327 100644
+--- a/src/config/model.rs
++++ b/src/config/model.rs
+@@ -356,8 +356,10 @@ pub struct KeysConfig {
+     pub rename_workspace: BindingConfig,
+     /// Close the selected workspace. Default: "prefix+shift+d"
+     pub close_workspace: BindingConfig,
+-    /// Open the workspace navigation surface. Default: "prefix+w"
++    /// Focus the workspace list. Default: "prefix+w"
+     pub workspace_picker: BindingConfig,
++    /// Focus the agent list. Unset by default.
++    pub agent_picker: BindingConfig,
+     /// Open the session navigator. Default: "prefix+g"
+     pub goto: BindingConfig,
+     /// Move workspace selection up in navigate mode. Default: "up".
+@@ -490,6 +492,8 @@ pub(crate) struct KeysConfigOverlay {
+     #[serde(skip_serializing_if = "Option::is_none")]
+     workspace_picker: Option<BindingConfig>,
+     #[serde(skip_serializing_if = "Option::is_none")]
++    agent_picker: Option<BindingConfig>,
++    #[serde(skip_serializing_if = "Option::is_none")]
+     goto: Option<BindingConfig>,
+     #[serde(skip_serializing_if = "Option::is_none")]
+     navigate_workspace_up: Option<BindingConfig>,
+@@ -620,6 +624,7 @@ impl<'de> Deserialize<'de> for KeysConfig {
+         apply_field!(rename_workspace);
+         apply_field!(close_workspace);
+         apply_field!(workspace_picker);
++        apply_field!(agent_picker);
+         apply_field!(goto);
+         apply_field!(navigate_workspace_up);
+         apply_field!(navigate_workspace_down);
+@@ -724,6 +729,7 @@ impl KeysConfig {
+         copy_effective_action_field!(rename_workspace, keybinds.rename_workspace);
+         copy_effective_action_field!(close_workspace, keybinds.close_workspace);
+         copy_effective_action_field!(workspace_picker, keybinds.workspace_picker);
++        copy_effective_action_field!(agent_picker, keybinds.agent_picker);
+         copy_effective_action_field!(goto, keybinds.goto);
+         copy_effective_action_field!(navigate_workspace_up, keybinds.navigate.workspace_up);
+         copy_effective_action_field!(navigate_workspace_down, keybinds.navigate.workspace_down);
+@@ -1034,6 +1040,7 @@ impl Default for KeysConfig {
+             rename_workspace: BindingConfig::one("prefix+shift+w"),
+             close_workspace: BindingConfig::one("prefix+shift+d"),
+             workspace_picker: BindingConfig::one("prefix+w"),
++            agent_picker: BindingConfig::empty(),
+             goto: BindingConfig::one("prefix+g"),
+             navigate_workspace_up: BindingConfig::one("up"),
+             navigate_workspace_down: BindingConfig::one("down"),
+diff --git a/src/main.rs b/src/main.rs
+index 6dcfcfc9..ce0071d1 100644
+--- a/src/main.rs
++++ b/src/main.rs
+@@ -190,6 +190,7 @@ const DEFAULT_CONFIG: &str = r##"# herdr configuration
+ # reload_config = "prefix+shift+r"
+ # open_notification_target = "prefix+o"
+ # workspace_picker = "prefix+w"
++# agent_picker = ""       # optional, e.g. "prefix+a"
+ # goto = "prefix+g"
+ # new_workspace = "prefix+shift+n"
+ # new_worktree = "prefix+shift+g"
+diff --git a/src/ui.rs b/src/ui.rs
+index 8adc31ef..88c4b9ba 100644
+--- a/src/ui.rs
++++ b/src/ui.rs
+@@ -77,14 +77,14 @@ pub(crate) use self::{
+     },
+     sidebar::{
+         agent_entry_gap, agent_entry_height_in_body, agent_panel_body_rect, agent_panel_entries,
+-        agent_panel_scroll_for_target, agent_panel_scroll_metrics, agent_panel_scrollbar_rect,
+-        agent_panel_toggle_rect, all_agent_panel_entries, collapsed_sidebar_sections,
+-        collapsed_sidebar_toggle_rect, compute_workspace_card_areas, expanded_sidebar_sections,
+-        expanded_sidebar_toggle_rect, normalized_workspace_scroll, sidebar_section_divider_rect,
+-        workspace_drop_slots, workspace_group_chevron_rect, workspace_list_entries,
+-        workspace_list_entries_expanded, workspace_list_rect, workspace_list_scroll_metrics,
+-        workspace_list_scrollbar_rect, workspace_parent_group_state, AgentPanelEntry,
+-        WorkspaceListEntry,
++        agent_panel_entry_rect, agent_panel_scroll_for_target, agent_panel_scroll_metrics,
++        agent_panel_scrollbar_rect, agent_panel_toggle_rect, all_agent_panel_entries,
++        collapsed_sidebar_sections, collapsed_sidebar_toggle_rect, compute_workspace_card_areas,
++        expanded_sidebar_sections, expanded_sidebar_toggle_rect, normalized_workspace_scroll,
++        sidebar_section_divider_rect, workspace_drop_slots, workspace_group_chevron_rect,
++        workspace_list_entries, workspace_list_entries_expanded, workspace_list_rect,
++        workspace_list_scroll_metrics, workspace_list_scrollbar_rect, workspace_parent_group_state,
++        AgentPanelEntry, WorkspaceListEntry,
+     },
+ };
+ 
+@@ -248,6 +248,9 @@ fn compute_view_internal(
+         let (_, detail_area) = expanded_sidebar_sections(sidebar_area, app.sidebar_section_split);
+         let max_agent_scroll = agent_panel_scroll_metrics(app, detail_area).max_offset_from_bottom;
+         app.agent_panel_scroll = app.agent_panel_scroll.min(max_agent_scroll);
++        app.selected_agent = app
++            .selected_agent
++            .min(agent_panel_entries(app).len().saturating_sub(1));
+     } else {
+         app.workspace_scroll = app
+             .workspace_scroll
+diff --git a/src/ui/keybind_help.rs b/src/ui/keybind_help.rs
+index 1f01c60c..9344a034 100644
+--- a/src/ui/keybind_help.rs
++++ b/src/ui/keybind_help.rs
+@@ -82,35 +82,26 @@ pub(super) fn keybind_help_groups(app: &AppState) -> Vec<HelpGroup> {
+     ));
+ 
+     groups.push((
+-        "navigation",
++        "sidebar navigation",
+         vec![
+-            help_entry("esc", "back"),
++            help_entry("h / esc", "back"),
+             help_entry(
+                 format!(
+                     "{} / {}",
+                     keybind_label(&kb.navigate.workspace_up),
+                     keybind_label(&kb.navigate.workspace_down)
+                 ),
+-                "workspace list",
++                "move selection",
+             ),
+-            help_entry(
+-                format!(
+-                    "{} / {} / {} / {} / left / right",
+-                    keybind_label(&kb.navigate.pane_left),
+-                    keybind_label(&kb.navigate.pane_down),
+-                    keybind_label(&kb.navigate.pane_up),
+-                    keybind_label(&kb.navigate.pane_right)
+-                ),
+-                "move focus",
+-            ),
+-            help_entry("tab / shift+tab", "cycle pane"),
+-            help_entry("enter", "open workspace"),
+-            help_entry("1..9", "switch workspace"),
++            help_entry("l", "open context menu"),
++            help_entry("enter", "open selection"),
++            help_entry("1..9", "open indexed selection"),
+         ],
+     ));
+ 
+     let workspace_tab = vec![
+-        help_entry(keybind_label(&kb.workspace_picker), "workspace navigation"),
++        help_entry(keybind_label(&kb.workspace_picker), "focus workspace list"),
++        help_entry(keybind_label(&kb.agent_picker), "focus agent list"),
+         help_entry(keybind_label(&kb.goto), "session navigator"),
+         help_entry(keybind_label(&kb.new_workspace), "new workspace"),
+         help_entry(keybind_label(&kb.new_worktree), "new worktree"),
+diff --git a/src/ui/menus.rs b/src/ui/menus.rs
+index 763c0ea8..31a7f045 100644
+--- a/src/ui/menus.rs
++++ b/src/ui/menus.rs
+@@ -7,7 +7,7 @@ use ratatui::{
+ };
+ 
+ use super::widgets::{panel_contrast_fg, render_panel_shell};
+-use crate::app::AppState;
++use crate::app::{state::SidebarNavigationTarget, AppState};
+ 
+ fn prefix_rhs_label(bindings: &crate::config::ActionKeybinds) -> String {
+     bindings
+@@ -39,6 +39,7 @@ pub(super) fn render_prefix_overlay(app: &AppState, frame: &mut Frame, area: Rec
+         .add_modifier(Modifier::BOLD);
+ 
+     let workspace_picker = prefix_rhs_label(&app.keybinds.workspace_picker);
++    let agent_picker = prefix_rhs_label(&app.keybinds.agent_picker);
+     let help = prefix_rhs_label(&app.keybinds.help);
+     let prefix = crate::config::format_key_combo((app.prefix_code, app.prefix_mods));
+ 
+@@ -50,7 +51,9 @@ pub(super) fn render_prefix_overlay(app: &AppState, frame: &mut Frame, area: Rec
+         Span::styled(prefix, key),
+         Span::styled(" send prefix  ", dim),
+         Span::styled(workspace_picker, key),
+-        Span::styled(" workspace nav  ", dim),
++        Span::styled(" workspaces  ", dim),
++        Span::styled(agent_picker, key),
++        Span::styled(" agents  ", dim),
+         Span::styled(help, key),
+         Span::styled(" keybinds", dim),
+     ]);
+@@ -154,15 +157,21 @@ pub(super) fn render_navigate_overlay(app: &AppState, frame: &mut Frame, area: R
+         keybind_label(&kb.navigate.workspace_up),
+         keybind_label(&kb.navigate.workspace_down)
+     );
++    let target = match app.sidebar_navigation_target {
++        SidebarNavigationTarget::Workspaces => "WORKSPACES",
++        SidebarNavigationTarget::Agents => "AGENTS",
++    };
+     let line = Line::from(vec![
+-        Span::styled(" NAVIGATE ", mode_style),
++        Span::styled(format!(" {target} "), mode_style),
+         Span::raw(" "),
+-        Span::styled("esc", key),
++        Span::styled("h/esc", key),
+         Span::styled(" back  ", dim),
+         Span::styled(workspace_nav, key),
+-        Span::styled(" ws  ", dim),
+-        Span::styled("⇥", key),
+-        Span::styled(" pane  ", dim),
++        Span::styled(" select  ", dim),
++        Span::styled("l", key),
++        Span::styled(" menu  ", dim),
++        Span::styled("enter", key),
++        Span::styled(" open  ", dim),
+         Span::styled(goto, key),
+         Span::styled(" navigator  ", dim),
+         Span::styled(new_tab, key),
+diff --git a/src/ui/sidebar.rs b/src/ui/sidebar.rs
+index 5b4d47ee..8e5d2108 100644
+--- a/src/ui/sidebar.rs
++++ b/src/ui/sidebar.rs
+@@ -12,7 +12,7 @@ use self::tokens::{ResolvedToken, ResolvedTokenKind, SpaceTokenContext};
+ use super::scrollbar::{render_scrollbar, should_show_scrollbar};
+ use super::status::{state_icon, state_label, state_label_color};
+ use super::text::{display_width, display_width_u16, truncate_end};
+-use crate::app::state::{AgentPanelSort, Palette};
++use crate::app::state::{AgentPanelSort, Palette, SidebarNavigationTarget};
+ use crate::app::{AppState, Mode};
+ use crate::detect::AgentState;
+ use crate::terminal::TerminalRuntimeRegistry;
+@@ -363,7 +363,9 @@ fn workspace_list_entries_inner(app: &AppState, force_expanded: bool) -> Vec<Wor
+         .map(|(key, _)| key.clone())
+         .collect::<std::collections::HashSet<_>>();
+ 
+-    let visible_group_idx = if matches!(app.mode, Mode::Navigate) {
++    let visible_group_idx = if matches!(app.mode, Mode::Navigate)
++        && app.sidebar_navigation_target == SidebarNavigationTarget::Workspaces
++    {
+         Some(app.selected)
+     } else {
+         app.active
+@@ -645,6 +647,46 @@ fn agent_panel_bottom_start(app: &AppState, area: Rect) -> usize {
+     start.min(entries.len().saturating_sub(1))
+ }
+ 
++pub(crate) fn agent_panel_entry_rect(app: &AppState, area: Rect, target: usize) -> Option<Rect> {
++    if app.sidebar_collapsed {
++        let (_, _, detail_area) = collapsed_sidebar_sections(area);
++        let body = Rect::new(
++            detail_area.x,
++            detail_area.y,
++            detail_area.width,
++            detail_area.height.saturating_sub(1),
++        );
++        return (target < body.height as usize)
++            .then(|| Rect::new(body.x, body.y + target as u16, body.width, 1));
++    }
++
++    let (_, detail_area) = expanded_sidebar_sections(area, app.sidebar_section_split);
++    let metrics = agent_panel_scroll_metrics(app, detail_area);
++    let body = agent_panel_body_rect(detail_area, should_show_scrollbar(metrics));
++    let scroll = app.agent_panel_scroll.min(metrics.max_offset_from_bottom);
++    if target < scroll {
++        return None;
++    }
++
++    let entries = agent_panel_entries(app);
++    let mut row_y = body.y;
++    let body_bottom = body.y + body.height;
++    for (index, entry) in entries.iter().enumerate().skip(scroll) {
++        let height = agent_entry_height_in_body(app, entry, body.height);
++        if row_y.saturating_add(height) > body_bottom {
++            break;
++        }
++        if index == target {
++            return Some(Rect::new(body.x, row_y, body.width, height));
++        }
++        row_y = row_y
++            .saturating_add(height)
++            .saturating_add(agent_entry_gap(app, index, entries.len()))
++            .min(body_bottom);
++    }
++    None
++}
++
+ pub(crate) fn agent_panel_scroll_for_target(
+     app: &AppState,
+     area: Rect,
+@@ -797,6 +839,10 @@ pub(super) fn render_sidebar_collapsed(app: &AppState, frame: &mut Frame, area:
+     }
+ 
+     let is_navigating = matches!(app.mode, Mode::Navigate);
++    let is_navigating_workspaces =
++        is_navigating && app.sidebar_navigation_target == SidebarNavigationTarget::Workspaces;
++    let is_navigating_agents =
++        is_navigating && app.sidebar_navigation_target == SidebarNavigationTarget::Agents;
+ 
+     let p = &app.palette;
+     frame
+@@ -827,7 +873,7 @@ pub(super) fn render_sidebar_collapsed(app: &AppState, frame: &mut Frame, area:
+         }
+         let (agg_state, agg_seen) = ws.aggregate_state(&app.terminals);
+         let (icon, icon_style) = state_icon(agg_state, agg_seen, app.status_indicators, p);
+-        let is_selected = visible_idx == app.selected && is_navigating;
++        let is_selected = visible_idx == app.selected && is_navigating_workspaces;
+         let is_active = Some(visible_idx) == app.active;
+         let selection_bg = workspace_selection_background(p, is_active);
+         let row_style = if is_selected {
+@@ -887,6 +933,7 @@ pub(super) fn render_sidebar_collapsed(app: &AppState, frame: &mut Frame, area:
+             if y >= detail_content_area.y + detail_content_area.height {
+                 break;
+             }
++            let is_selected = is_navigating_agents && detail_idx == app.selected_agent;
+             let is_active = app.is_active_pane(detail.ws_idx, detail.tab_idx, detail.pane_id);
+             let (state_symbol, state_style) =
+                 state_icon(detail.state, detail.seen, app.status_indicators, p);
+@@ -897,14 +944,21 @@ pub(super) fn render_sidebar_collapsed(app: &AppState, frame: &mut Frame, area:
+             )
+             .unwrap_or(state_symbol);
+ 
+-            if is_active {
++            if is_selected || is_active {
++                let background = if is_selected {
++                    workspace_selection_background(p, is_active)
++                } else {
++                    p.active_row_bg
++                };
+                 let buf = frame.buffer_mut();
+                 for x in detail_content_area.x..detail_content_area.x + detail_content_area.width {
+-                    buf[(x, y)].set_style(Style::default().bg(p.active_row_bg));
++                    buf[(x, y)].set_style(Style::default().bg(background));
+                 }
+             }
+ 
+-            let prefix_style = if is_active {
++            let prefix_style = if is_selected {
++                Style::default().bg(workspace_selection_background(p, is_active))
++            } else if is_active {
+                 Style::default().bg(p.active_row_bg)
+             } else {
+                 Style::default()
+@@ -1029,6 +1083,8 @@ pub(super) fn render_sidebar(
+         .buffer_mut()
+         .set_style(area, Style::default().bg(p.sidebar_bg));
+     let is_navigating = matches!(app.mode, Mode::Navigate);
++    let is_navigating_workspaces =
++        is_navigating && app.sidebar_navigation_target == SidebarNavigationTarget::Workspaces;
+     let sep_style = if is_navigating {
+         Style::default().fg(p.accent)
+     } else {
+@@ -1044,7 +1100,13 @@ pub(super) fn render_sidebar(
+ 
+     let (ws_area, detail_area) = expanded_sidebar_sections(area, app.sidebar_section_split);
+ 
+-    render_workspace_list(app, terminal_runtimes, frame, ws_area, is_navigating);
++    render_workspace_list(
++        app,
++        terminal_runtimes,
++        frame,
++        ws_area,
++        is_navigating_workspaces,
++    );
+     render_agent_detail(app, terminal_runtimes, frame, detail_area);
+     render_sidebar_toggle(app, frame, area, false, p);
+ }
+@@ -1540,18 +1602,24 @@ fn render_agent_detail(
+             break;
+         }
+ 
++        let is_selected = matches!(app.mode, Mode::Navigate)
++            && app.sidebar_navigation_target == SidebarNavigationTarget::Agents
++            && index == app.selected_agent;
+         let is_active = app.is_active_pane(detail.ws_idx, detail.tab_idx, detail.pane_id);
+-        let row_style = if is_active {
+-            Style::default().bg(p.active_row_bg)
++        let row_background = if is_selected {
++            Some(workspace_selection_background(p, is_active))
++        } else if is_active {
++            Some(p.active_row_bg)
+         } else {
+-            Style::default()
++            None
+         };
+-        let name_style = if is_active {
++        let row_style = row_background.map_or_else(Style::default, |bg| Style::default().bg(bg));
++        let name_style = if is_selected || is_active {
+             Style::default().fg(p.text).add_modifier(Modifier::BOLD)
+         } else {
+             Style::default().fg(p.subtext0).add_modifier(Modifier::BOLD)
+         };
+-        let status_style = if is_active {
++        let status_style = if is_selected || is_active {
+             Style::default().fg(label_color)
+         } else {
+             Style::default().fg(label_color).add_modifier(Modifier::DIM)
+@@ -1746,6 +1814,39 @@ mod tests {
+         assert_eq!(agent_style.bg, Some(app.palette.active_row_bg));
+     }
+ 
++    #[test]
++    fn sidebar_navigation_highlights_the_selected_agent() {
++        let mut app = crate::app::state::AppState::test_new();
++        app.workspaces = vec![Workspace::test_new("one"), Workspace::test_new("two")];
++        app.ensure_test_terminals();
++        app.active = Some(0);
++        for ws_idx in 0..2 {
++            let pane_id = app.workspaces[ws_idx].tabs[0].root_pane;
++            let terminal_id = app.workspaces[ws_idx].tabs[0].panes[&pane_id]
++                .attached_terminal_id
++                .clone();
++            app.terminals.get_mut(&terminal_id).unwrap().detected_agent = Some(Agent::Pi);
++        }
++        app.mode = Mode::Navigate;
++        app.sidebar_navigation_target = SidebarNavigationTarget::Agents;
++        app.selected_agent = 1;
++
++        let area = Rect::new(0, 0, 26, 20);
++        let mut terminal = Terminal::new(TestBackend::new(26, 20)).unwrap();
++        terminal
++            .draw(|frame| render_sidebar(&app, &TerminalRuntimeRegistry::new(), frame, area))
++            .unwrap();
++        let (_, agent_area) = expanded_sidebar_sections(area, app.sidebar_section_split);
++        let body = agent_panel_body_rect(agent_area, false);
++        let buffer = terminal.backend().buffer();
++
++        assert_eq!(buffer[(body.x, body.y)].bg, app.palette.active_row_bg);
++        assert_eq!(
++            buffer[(body.x, body.y + 2)].bg,
++            workspace_selection_background(&app.palette, false)
++        );
++    }
++
+     #[test]
+     fn occurrence_false_removes_default_workspace_bold_and_agent_dim() {
+         let config: crate::config::Config = toml::from_str(

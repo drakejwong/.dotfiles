@@ -14,13 +14,18 @@ focus_pane_left = "ctrl+h"
 focus_pane_down = "ctrl+j"
 focus_pane_up = "ctrl+k"
 focus_pane_right = "ctrl+l"
-# Focus agents 1-8 by panel position; 9 focuses the last agent.
-focus_agent = "cmd+1..9"
 # Focus workspaces 1-8 by sidebar position; 9 focuses the last workspace.
-switch_workspace = "cmd+shift+1..9"
-# Cycle through agents in the order shown in the Agent panel.
-previous_agent = "cmd+shift+["
-next_agent = "cmd+shift+]"
+switch_workspace = "cmd+1..9"
+# Focus agents 1-8 by panel position; 9 focuses the last agent.
+focus_agent = "cmd+shift+1..9"
+# Cycle through workspaces in sidebar order.
+previous_workspace = "cmd+shift+["
+next_workspace = "cmd+shift+]"
+# Focus the workspace or agent list for keyboard navigation.
+workspace_picker = "prefix+w"
+agent_picker = "prefix+a"
+navigate_workspace_up = ["up", "k"]
+navigate_workspace_down = ["down", "j"]
 
 [theme]
 name = "tokyo-night"

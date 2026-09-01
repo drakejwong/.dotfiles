@@ -7,11 +7,11 @@ font-feature = -dlig
 font-feature = -calt
 
 # Let terminal applications receive Cmd+Shift+[/] instead of cycling Ghostty tabs.
-# Herdr binds these chords to previous_agent and next_agent.
+# Herdr binds these chords to previous_workspace and next_workspace.
 keybind = super+shift+[=unbind
 keybind = super+shift+]=unbind
 
-# Send Cmd+1..9 as Kitty keyboard sequences so Herdr receives Super+1..9.
+# Send Cmd+1..9 as Kitty keyboard sequences for direct workspace selection.
 # Ghostty defines both logical and physical digit bindings for 1..8.
 keybind = super+1=csi:49;9u
 keybind = super+digit_1=csi:49;9u
@@ -32,7 +32,7 @@ keybind = super+digit_8=csi:56;9u
 keybind = super+9=csi:57;9u
 keybind = super+digit_9=csi:57;9u
 
-# Send Cmd+Shift+1..9 to Herdr for direct workspace selection.
+# Send Cmd+Shift+1..9 to Herdr for direct agent selection.
 keybind = super+shift+1=csi:49:33;10u
 keybind = super+shift+digit_1=csi:49:33;10u
 keybind = super+shift+2=csi:50:64;10u
