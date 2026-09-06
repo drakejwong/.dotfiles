@@ -5,10 +5,15 @@ local M = {
 }
 
 function M.setup(pack)
-  pack.event("gitsigns", "gitsigns.nvim", { "BufReadPre", "BufNewFile" }, function()
+  pack.event("gitsigns", { "mini.nvim", "gitsigns.nvim" }, { "BufReadPre", "BufNewFile" }, function()
+    local jj = require("config.jjsigns")
+    jj.setup()
     require("gitsigns").setup({
       current_line_blame = false,
       on_attach = function(buf)
+        if vim.fn.executable("jj") == 1 and jj.detect(buf) then
+          return false
+        end
         local gs = require("gitsigns")
         local function map(mode, lhs, rhs, desc)
           vim.keymap.set(mode, lhs, rhs, { buffer = buf, desc = desc })
