@@ -11,8 +11,15 @@ vim.g.loaded_ruby_provider = 0
 
 vim.filetype.add({
   extension = { mdx = "mdx" },
+  filename = {
+    ["buf.yaml"] = "buf-config",
+    ["buf.gen.yaml"] = "buf-config",
+    ["buf.policy.yaml"] = "buf-config",
+    ["buf.lock"] = "buf-config",
+  },
 })
 vim.treesitter.language.register("markdown", "mdx")
+vim.treesitter.language.register("yaml", "buf-config")
 
 local opt = vim.opt
 

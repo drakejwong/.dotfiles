@@ -18,6 +18,8 @@ local servers = {
   lua_ls = { command = "lua-language-server", filetypes = { "lua" } },
   basedpyright = { command = "basedpyright-langserver", filetypes = { "python" } },
   pyright = { command = "pyright-langserver", filetypes = { "python" } },
+  buf_ls = { command = "buf", filetypes = { "proto", "buf-config" } },
+  protols = { command = "protols", filetypes = { "proto" } },
   gopls = { command = "gopls", filetypes = { "go", "gomod", "gowork", "gotmpl" } },
   rust_analyzer = {
     command = "rust-analyzer",
@@ -59,6 +61,11 @@ local servers = {
     command = "yaml-language-server",
     filetypes = { "yaml", "yaml.docker-compose", "yaml.gitlab", "yaml.helm-values" },
   },
+}
+-- Only the first available server in each group is enabled.
+local alternatives = {
+  { "basedpyright", "pyright" },
+  { "buf_ls", "protols" },
 }
 
 local executable_cache = {}
@@ -350,10 +357,15 @@ function M.setup(pack)
       configure_typescript(bufnr, filetype)
     end
 
-    if configured_servers.basedpyright then
-      relevant.pyright = nil
-    elseif configured_servers.pyright then
-      relevant.basedpyright = nil
+    for _, group in ipairs(alternatives) do
+      local configured = vim.iter(group):any(function(name)
+        return configured_servers[name] == true
+      end)
+      if configured then
+        for _, name in ipairs(group) do
+          relevant[name] = nil
+        end
+      end
     end
     if vim.tbl_isempty(relevant) then
       return
@@ -373,11 +385,14 @@ function M.setup(pack)
           return
         end
 
-        if relevant.basedpyright and relevant.pyright then
-          if paths.basedpyright then
-            relevant.pyright = nil
-          else
-            relevant.basedpyright = nil
+        for _, group in ipairs(alternatives) do
+          local chosen = false
+          for _, name in ipairs(group) do
+            if relevant[name] and paths[name] and not chosen then
+              chosen = true
+            elseif relevant[name] then
+              relevant[name] = nil
+            end
           end
         end
 

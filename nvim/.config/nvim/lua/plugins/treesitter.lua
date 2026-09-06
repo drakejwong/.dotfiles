@@ -19,6 +19,7 @@ local languages = {
   "lua",
   "markdown",
   "markdown_inline",
+  "proto",
   "python",
   "rust",
   "sql",

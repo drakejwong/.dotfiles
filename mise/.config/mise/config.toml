@@ -1,5 +1,6 @@
 [tools]
 bat = "latest"
+buf = "latest"
 cmake = "latest"
 delta = "latest"
 eza = "latest"

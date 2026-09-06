@@ -18,7 +18,7 @@ A standalone Neovim 0.12+ configuration. It uses the built-in `vim.pack` manager
 - `:TSInstallConfigured`: install missing configured Treesitter parsers
 - `:checkhealth`: inspect Neovim and plugin dependencies
 
-Language servers, formatters, and linters are not installed by Neovim. The configuration uses each tool when it is available and otherwise continues without it. TypeScript server discovery also checks the current project's `node_modules/.bin` directory. It prefers `effect-tsgo`, native TypeScript 7, VTSLS, and then TypeScript Language Server, in that order. A project-local VTSLS loads a project-local `@effect/language-service` when present.
+Language servers, formatters, and linters are not installed by Neovim. The configuration uses each tool when it is available and otherwise continues without it. TypeScript server discovery also checks the current project's `node_modules/.bin` directory. It prefers `effect-tsgo`, native TypeScript 7, VTSLS, and then TypeScript Language Server, in that order. A project-local VTSLS loads a project-local `@effect/language-service` when present. Protobuf uses `buf` for the language server (`buf lsp serve`), formatter, and linter, and falls back to `protols` and `protolint` when `buf` is missing. `buf.yaml`, `buf.gen.yaml`, `buf.policy.yaml`, and `buf.lock` get the `buf-config` filetype so `buf_ls` also serves them.
 
 Baseline executables are `git`, `rg`, `fd`, `fzf`, `tree-sitter` 0.26.1+, and a C compiler.
 
