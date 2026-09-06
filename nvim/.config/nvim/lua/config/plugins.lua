@@ -6,6 +6,7 @@ local modules = {
   require("plugins.fzf"),
   require("plugins.git"),
   require("plugins.lsp"),
+  require("plugins.session"),
   require("plugins.tools"),
   require("plugins.treesitter"),
   require("plugins.ui"),

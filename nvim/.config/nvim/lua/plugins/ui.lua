@@ -24,6 +24,9 @@ function M.setup(pack)
             { icon = " ", key = "c", desc = "Config", action = function()
               require("plugins.fzf").files({ cwd = vim.fn.stdpath("config") })
             end },
+            { icon = " ", key = "s", desc = "Restore session", action = function()
+              require("plugins.session").restore()
+            end },
             { icon = " ", key = "q", desc = "Quit", action = ":qa" },
           },
         },
