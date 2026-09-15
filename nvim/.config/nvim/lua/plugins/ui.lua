@@ -4,6 +4,7 @@ local M = {
     { src = "https://github.com/folke/tokyonight.nvim" },
     { src = "https://github.com/nvim-lualine/lualine.nvim" },
     { src = "https://github.com/akinsho/bufferline.nvim" },
+    { src = "https://github.com/sphamba/smear-cursor.nvim" },
   },
 }
 
@@ -101,6 +102,10 @@ function M.setup(pack)
         right_mouse_command = function(buf) Snacks.bufdelete(buf) end,
       },
     })
+  end)
+
+  pack.defer("smear-cursor", "smear-cursor.nvim", function()
+    require("smear_cursor").setup({})
   end)
 end
 
