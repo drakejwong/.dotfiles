@@ -1,17 +1,26 @@
 #!/usr/bin/env bash
-# Bootstrap this macOS development environment with mise and upstream installers.
+# Bootstrap this development environment with mise and upstream installers.
+# macOS gets the full desktop setup. Linux gets the headless subset: shell,
+# editor, VCS, CLI tools, and pibert.
 
 set -euo pipefail
 
-if [[ $(uname -s) != Darwin ]]; then
-	printf 'This bootstrap currently supports macOS only.\n' >&2
+case $(uname -s) in
+Darwin) OS=macos ;;
+Linux) OS=linux ;;
+*)
+	printf 'Unsupported operating system: %s\n' "$(uname -s)" >&2
 	exit 1
-fi
+	;;
+esac
 
 DOTFILES_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 PIBERT_DIR="$HOME/.pibert"
 BACKUP_DIR="$HOME/.dotfiles-backup/$(date +%Y%m%d-%H%M%S)"
-PACKAGES=(mise git jj ghostty herdr nvim starship zsh karabiner yabai skhd)
+PACKAGES=(mise git jj nvim starship zsh)
+if [[ $OS == macos ]]; then
+	PACKAGES+=(ghostty herdr karabiner yabai skhd)
+fi
 
 backup_and_link() {
 	local source=$1 target=$2 relative
@@ -225,7 +234,7 @@ install_herdr_build_dependencies() {
 
 install_pibert() {
 	if [[ ! -d "$PIBERT_DIR/.git" ]]; then
-		git clone https://github.com/drakejwong/pibert.git "$PIBERT_DIR"
+		git clone git@github.com:drakejwong/pibert.git "$PIBERT_DIR"
 	fi
 	"$PIBERT_DIR/install.sh"
 }
@@ -234,14 +243,27 @@ migrate_zsh_secret
 for package in "${PACKAGES[@]}"; do
 	link_package "$package"
 done
-install_mutable_config "$DOTFILES_DIR/herdr/.config/herdr/config.toml" "$HOME/.config/herdr/config.toml"
-install_mutable_config "$DOTFILES_DIR/karabiner/.config/karabiner/karabiner.json" "$HOME/.config/karabiner/karabiner.json"
+if [[ $OS == macos ]]; then
+	install_mutable_config "$DOTFILES_DIR/herdr/.config/herdr/config.toml" "$HOME/.config/herdr/config.toml"
+	install_mutable_config "$DOTFILES_DIR/karabiner/.config/karabiner/karabiner.json" "$HOME/.config/karabiner/karabiner.json"
+fi
 prune_retired_links
 install_zsh_plugins
 
 install_mise
 install_jj_starship
 install_neovim_resources
+
+if [[ $OS == linux ]]; then
+	install_pibert
+	install_zsh_cache
+	cat <<'EOF'
+Dotfiles and CLI tools are installed (Linux headless profile).
+Start a new login shell, or run: exec zsh -l
+EOF
+	exit 0
+fi
+
 install_fonts
 "$DOTFILES_DIR/configure-macos-shortcuts.sh"
 
