@@ -5,8 +5,9 @@ usage() {
 	cat <<'EOF'
 Usage: herdr-patched-update [--build-only] [--skip-tests] [REF]
 
-Build Herdr from upstream master (or REF) with the maintained master patch
-set, then install it to ~/.local/bin.
+Build Herdr from the pinned upstream commit (or REF) with the maintained
+master patch set, then install it to ~/.local/bin. Pass "master" to try the
+current upstream tip; bump DEFAULT_REF once the patches are ported.
 
 Options:
   --build-only  Build and verify without installing the binary.
@@ -15,9 +16,13 @@ Options:
 EOF
 }
 
+# Last upstream commit where every patch below applies. Later commits
+# ("refactor: render the shell in the client", #3487) moved the input code.
+DEFAULT_REF=8a6d6973
+
 build_only=false
 run_tests=true
-ref=master
+ref=$DEFAULT_REF
 ref_set=false
 while (($#)); do
 	case "$1" in

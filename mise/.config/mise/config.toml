@@ -26,6 +26,8 @@ shfmt = "latest"
 starship = "latest"
 stylua = "latest"
 tree-sitter = "latest"
+# Herdr's vendored libghostty-vt requires this Zig line; see herdr-patched-update.
+zig = "0.15.2"
 zoxide = "latest"
 
 [settings]

@@ -17,9 +17,9 @@ esac
 DOTFILES_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 PIBERT_DIR="$HOME/.pibert"
 BACKUP_DIR="$HOME/.dotfiles-backup/$(date +%Y%m%d-%H%M%S)"
-PACKAGES=(mise git jj nvim starship zsh)
+PACKAGES=(mise git jj nvim starship zsh herdr)
 if [[ $OS == macos ]]; then
-	PACKAGES+=(ghostty herdr karabiner yabai skhd)
+	PACKAGES+=(ghostty karabiner yabai skhd)
 fi
 
 backup_and_link() {
@@ -220,8 +220,10 @@ install_skhd() {
 }
 
 install_herdr_build_dependencies() {
-	# Herdr upstream uses Homebrew's patched Zig build on Tahoe because the
-	# official Zig archive cannot link build runners against the Tahoe SDK.
+	# Linux uses the Zig pinned in mise. Herdr upstream uses Homebrew's patched
+	# Zig build on Tahoe because the official Zig archive cannot link build
+	# runners against the Tahoe SDK.
+	[[ $OS == macos ]] || return 0
 	if brew_prefix=$(brew --prefix zig@0.15 2>/dev/null) && [[ -x "$brew_prefix/bin/zig" ]]; then
 		return
 	fi
@@ -239,12 +241,19 @@ install_pibert() {
 	"$PIBERT_DIR/install.sh"
 }
 
+install_herdr() {
+	if [[ ${SKIP_HERDR_BUILD:-0} != 1 ]] && { [[ ${UPDATE_NATIVE_TOOLS:-0} == 1 ]] || ! command -v herdr >/dev/null 2>&1; }; then
+		install_herdr_build_dependencies
+		herdr-patched-update
+	fi
+}
+
 migrate_zsh_secret
 for package in "${PACKAGES[@]}"; do
 	link_package "$package"
 done
+install_mutable_config "$DOTFILES_DIR/herdr/.config/herdr/config.toml" "$HOME/.config/herdr/config.toml"
 if [[ $OS == macos ]]; then
-	install_mutable_config "$DOTFILES_DIR/herdr/.config/herdr/config.toml" "$HOME/.config/herdr/config.toml"
 	install_mutable_config "$DOTFILES_DIR/karabiner/.config/karabiner/karabiner.json" "$HOME/.config/karabiner/karabiner.json"
 fi
 prune_retired_links
@@ -256,6 +265,7 @@ install_neovim_resources
 
 if [[ $OS == linux ]]; then
 	install_pibert
+	install_herdr
 	install_zsh_cache
 	cat <<'EOF'
 Dotfiles and CLI tools are installed (Linux headless profile).
@@ -290,11 +300,7 @@ if $install_skhd_now; then
 fi
 
 install_pibert
-
-if [[ ${SKIP_HERDR_BUILD:-0} != 1 ]] && { [[ ${UPDATE_NATIVE_TOOLS:-0} == 1 ]] || ! command -v herdr >/dev/null 2>&1; }; then
-	install_herdr_build_dependencies
-	herdr-patched-update
-fi
+install_herdr
 
 install_zsh_cache
 
