@@ -22,7 +22,6 @@ alt - z : yabai -m window --focus stack.prev
 alt - c : yabai -m window --focus stack.next
 
 # swap window
-shift + alt - x : yabai -m window --swap recent
 shift + alt - h : yabai -m window --swap west ; if [[ $? -eq 1 ]]; then yabai -m window --display west && yabai -m display --focus west; fi
 shift + alt - j : yabai -m window --swap south ; if [[ $? -eq 1 ]]; then yabai -m window --display south && yabai -m display --focus south; fi
 shift + alt - k : yabai -m window --swap north ; if [[ $? -eq 1 ]]; then yabai -m window --display north && yabai -m display --focus north; fi
@@ -83,7 +82,6 @@ cmd + alt - 9 : yabai -m window --space  9 && yabai -m space --focus 9 || skhd -
 cmd + alt - 0 : yabai -m window --space 10 && yabai -m space --focus 10 || skhd -k "ctrl + alt + cmd - 0"
 
 # fast focus desktop
-shift + alt - x : yabai -m space --focus recent
 shift + alt - z : yabai -m space --focus prev
 shift + alt - c : yabai -m space --focus next
 shift + alt - 1 : yabai -m space --focus  1
