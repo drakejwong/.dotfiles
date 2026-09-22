@@ -1,3 +1,8 @@
+[tool_alias]
+# Short names for prefixed backends so `mise up pi` and friends work.
+pi = "npm:@earendil-works/pi-coding-agent"
+jj-starship = "github:dmmulroy/jj-starship"
+
 [tools]
 bat = "latest"
 buf = "latest"
@@ -8,7 +13,7 @@ fd = "latest"
 fzf = "latest"
 gh = "latest"
 git-lfs = "latest"
-"github:dmmulroy/jj-starship" = "0.7.1"
+jj-starship = "0.7.1"
 jj = "latest"
 jq = "latest"
 lazygit = "latest"
@@ -16,7 +21,7 @@ lua-language-server = "latest"
 neovim = "latest"
 ninja = "latest"
 node = "lts"
-"npm:@earendil-works/pi-coding-agent" = "latest"
+pi = "latest"
 pnpm = "latest"
 python = "latest"
 ripgrep = "latest"
