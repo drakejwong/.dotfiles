@@ -61,7 +61,7 @@ function M.setup(pack)
   pack.defer("yanky", "yanky.nvim", function()
     require("yanky").setup({
       highlight = { timer = 150 },
-      system_clipboard = { sync_with_ring = not vim.env.SSH_CONNECTION },
+      system_clipboard = { sync_with_ring = not vim.g.osc52_clipboard },
     })
   end)
   local yanky_maps = {

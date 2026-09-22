@@ -24,7 +24,36 @@ vim.treesitter.language.register("yaml", "buf-config")
 local opt = vim.opt
 
 opt.autowrite = false
-opt.clipboard = vim.env.SSH_CONNECTION and "" or "unnamedplus"
+opt.clipboard = "unnamedplus"
+local has_local_clipboard = vim.fn.has("mac") == 1
+  or vim.fn.executable("wl-copy") == 1
+  or vim.fn.executable("xclip") == 1
+  or vim.fn.executable("xsel") == 1
+vim.g.osc52_clipboard = (vim.env.SSH_CONNECTION ~= nil) or not has_local_clipboard
+if vim.g.osc52_clipboard then
+  -- Over SSH, or on a box with no clipboard tool, copy through OSC 52 so the
+  -- local terminal (Ghostty, also inside Herdr) receives yanks. Paste returns
+  -- the last copied text: most terminals block or prompt on OSC 52 reads.
+  local osc52 = require("vim.ui.clipboard.osc52")
+  local cache = {}
+  local function copy(reg)
+    local send = osc52.copy(reg)
+    return function(lines, regtype)
+      cache[reg] = { lines, regtype }
+      send(lines, regtype)
+    end
+  end
+  local function paste(reg)
+    return function()
+      return cache[reg] or { {}, "v" }
+    end
+  end
+  vim.g.clipboard = {
+    name = "OSC 52",
+    copy = { ["+"] = copy("+"), ["*"] = copy("*") },
+    paste = { ["+"] = paste("+"), ["*"] = paste("*") },
+  }
+end
 opt.completeopt = { "menu", "menuone", "noselect" }
 opt.conceallevel = 2
 opt.confirm = true
