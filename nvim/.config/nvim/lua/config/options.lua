@@ -81,6 +81,7 @@ opt.laststatus = 3
 opt.linebreak = true
 opt.list = true
 opt.listchars = { tab = "» ", trail = "·", nbsp = "␣" }
+opt.modeline = false
 opt.mouse = "a"
 opt.number = true
 opt.pumblend = 10
